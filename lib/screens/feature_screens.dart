@@ -167,18 +167,21 @@ class _DetailPengumumanScreenState extends State<DetailPengumumanScreen> {
                   
                   // Image if any (Simple implementation)
                   if (widget.pengumuman.imageUrls.isNotEmpty)
-                    Container(
-                      height: 200, 
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(12),
-                        image: DecorationImage(
-                          image: NetworkImage(widget.pengumuman.imageUrls.first),
-                          fit: BoxFit.cover,
-                          onError: (_,__) => const Icon(Icons.broken_image)
-                        )
+                    Hero(
+                      tag: widget.pengumuman.id,
+                      child: Container(
+                        height: 200, 
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: NetworkImage(widget.pengumuman.imageUrls.first),
+                            fit: BoxFit.cover,
+                            onError: (_,__) => const Icon(Icons.broken_image)
+                          )
+                        ),
                       ),
                     ),
 
@@ -215,7 +218,7 @@ class _DetailPengumumanScreenState extends State<DetailPengumumanScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0,2))]
+                              boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0,2))]
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +250,7 @@ class _DetailPengumumanScreenState extends State<DetailPengumumanScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0,-5))]
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0,-5))]
             ),
             child: Row(
               children: [
@@ -303,7 +306,7 @@ class _ForumChatScreenState extends State<ForumChatScreen> {
     
     // Check Status first (double usage check)
     if (widget.forum.status == 'pending' && widget.currentUser.role == 'user') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Diskusi ini belum disetujui Admin.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Diskusi ini belum disetujui Ketua RT.")));
       return;
     }
 
@@ -333,7 +336,7 @@ class _ForumChatScreenState extends State<ForumChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isAdmin = ['admin', 'ketua_rt'].contains(widget.currentUser.role);
+    bool isAdmin = widget.currentUser.role == 'ketua_rt';
     bool isPending = widget.forum.status == 'pending';
     bool canChat = isAdmin || !isPending;
 
@@ -376,7 +379,7 @@ class _ForumChatScreenState extends State<ForumChatScreen> {
               padding: const EdgeInsets.all(12),
               color: Colors.orange[50],
               width: double.infinity,
-              child: const Text("Menunggu verifikasi admin...", textAlign: TextAlign.center, style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+              child: const Text("Menunggu verifikasi Ketua RT...", textAlign: TextAlign.center, style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
             ),
 
           // Deskripsi
@@ -422,7 +425,7 @@ class _ForumChatScreenState extends State<ForumChatScreen> {
                             bottomLeft: Radius.circular(isMe ? 16 : 0),
                             bottomRight: Radius.circular(isMe ? 0 : 16),
                           ),
-                          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 2, offset: const Offset(0,1))],
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0,1))],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

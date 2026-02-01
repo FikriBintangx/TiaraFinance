@@ -71,7 +71,7 @@ class _HouseLoadingWidgetState extends State<HouseLoadingWidget> with SingleTick
               width: widget.size * 0.6 * (2 - _scaleAnimation.value), // Shadow shrinks when house grows/jumps
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
             );

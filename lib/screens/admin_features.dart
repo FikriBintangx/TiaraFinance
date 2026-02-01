@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tiara_fin/models.dart';
 import 'package:tiara_fin/services.dart';
-import 'package:tiara_fin/screens/user_screens.dart'; // for AppColors
+
 import 'package:tiara_fin/screens/feature_screens.dart'; // for Create/Detail screens
 
 class PengumumanListScreen extends StatefulWidget {

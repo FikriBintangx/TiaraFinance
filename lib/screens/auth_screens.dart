@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tiara_fin/screens/admin_screens.dart';
-import 'package:tiara_fin/screens/user_screens.dart'; // Tetap butuh ini untuk navigasi ke UserMainScreen
+import 'package:tiara_fin/screens/user_screens.dart'; // Tetep butuh ini biar user bisa masuk rumah
 import 'package:tiara_fin/services.dart';
-import 'package:tiara_fin/widgets/custom_loading.dart';
 
-// ========== CUSTOM PAINTERS ==========
+
+// ========== TUKANG GAMBAR EFEK KHUSUS (PAINTER) ==========
 class WavyHeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user != null) {
       if (!mounted) return;
-      // Arahkan sesuai role
+      // Petunjuk arah sesuai jabatan
       if (user.role == 'admin' || user.role == 'ketua_rt') {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminMainScreen()));
       } else {
@@ -75,17 +75,17 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Background color
+      backgroundColor: Colors.grey[50], // Warna dasar alias background
       body: Stack(
         children: [
-          // Wavy Header
+          // Header Bergelombang Manja
           ClipPath(
             clipper: WavyHeaderClipper(),
             child: Container(
               height: 320,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF009688), Color(0xFF00796B)], // Apps primary color hardcoded
+                  colors: [Color(0xFF009688), Color(0xFF00796B)], // Warna utama aplikasi (dipatenkan)
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -109,104 +109,116 @@ class _LoginScreenState extends State<LoginScreen> {
                       "Sistem Keuangan RT Modern",
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
-                    const SizedBox(height: 40), // Space for curve
+                    const SizedBox(height: 40), // Ruang buat lekukan
                   ],
                 ),
               ),
             ),
           ),
           
-          // Content
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 260, 24, 24),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Selamat Datang!",
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Silakan login untuk melanjutkan",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _emailCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
+          // Isinya diamanin dari poni HP dan Keyboard
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Spasi pintar, nyiut kalo keyboard nongol
+                    const SizedBox(height: 180), 
+                    
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _passCtrl,
-                        obscureText: _isObscure,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
-                            onPressed: () => setState(() => _isObscure = !_isObscure),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _rememberMe,
-                            activeColor: const Color(0xFF009688),
-                            onChanged: (val) => setState(() => _rememberMe = val ?? false),
-                          ),
-                          const Text('Ingat saya'),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF009688),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 5,
+                      child: Column(
+                        children: [
+                          const Text(
+                            "Selamat Datang!",
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                           ),
-                          child: _isLoading
-                              ? const HouseLoadingWidget(size: 24, color: Colors.white)
-                              : const Text("LOGIN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Silakan login untuk melanjutkan",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 24),
+                          TextField(
+                            controller: _emailCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _passCtrl,
+                            obscureText: _isObscure,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
+                                onPressed: () => setState(() => _isObscure = !_isObscure),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberMe,
+                                activeColor: const Color(0xFF009688),
+                                onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                              ),
+                              const Text('Ingat saya'),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF009688),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 5,
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24, 
+                                      height: 24, 
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
+                                    )
+                                  : const Text("LOGIN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],

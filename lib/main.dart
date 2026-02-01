@@ -4,56 +4,62 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:tiara_fin/firebase_options.dart';
-import 'package:tiara_fin/screens/auth_screens.dart';
-import 'package:tiara_fin/screens/user_screens.dart';
-import 'package:tiara_fin/screens/admin_screens.dart';
-import 'package:tiara_fin/services.dart';
-import 'package:tiara_fin/widgets/custom_loading.dart';
 import 'package:tiara_fin/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:tiara_fin/screens/splash_screen.dart';
+
+/// Urusin pesan pas aplikasi lagi tidur (harus top-level biar ga error)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print("📱 Background Message: ${message.notification?.title}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Enable high refresh rate (60-120Hz)
+  // Gaspol refresh rate biar licin (60-120Hz)
   await _enableHighRefreshRate();
 
-  // Error handling untuk startup
+  // Jaga-jaga kalo pas nyala malah meledak
   try {
-    // Init Firebase
+    // Nyalain Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Initialize FCM background handler
+    // Siapin satpam background (FCM)
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // Init Supabase with error handling
+    // Panggil Supabase
     await Supabase.initialize(
       url: 'https://sofrnepvtfwexcthmgwh.supabase.co',
       anonKey: 'sb_publishable_Xp2rAPiwf_ZgwzlSQvdlww_IqaCTxF5',
     );
 
+    // Siapin Service Notifikasi
+    await NotificationService().initialize();
+
     runApp(const MyApp());
   } catch (e) {
-    // Fallback error screen
+    // Aplikasi cadangan kalo yang utama tewas
     runApp(ErrorApp(error: e.toString()));
   }
 }
 
-/// Enable High Refresh Rate untuk smooth animation (60-120Hz)
+/// Helper buat aktifin High Refresh Rate (biar smooth kek jalan tol)
 Future<void> _enableHighRefreshRate() async {
   try {
-    // Set preferred FPS untuk device yang support high refresh rate
+    // Set FPS mentok kanan buat device sultan
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
 
-    // Enable edge-to-edge display
+    // Layar full sampe mentok
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    // Set system UI overlay style
+    // Warna status bar transparan biar kece
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -63,7 +69,7 @@ Future<void> _enableHighRefreshRate() async {
       ),
     );
   } catch (e) {
-    debugPrint('Failed to enable high refresh rate: $e');
+    debugPrint('Gagal aktifin high refresh rate: $e');
   }
 }
 
@@ -108,13 +114,19 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
-      home: const ConnectivityWrapper(child: AuthCheck()),
+      home: const ConnectivityWrapper(child: SplashScreen()),
     );
   }
 }
 
-/// Wrapper untuk cek konektivitas internet
+/// Bungkus buat ngecek nyambung gak nih internetnya
 class ConnectivityWrapper extends StatefulWidget {
   final Widget child;
   const ConnectivityWrapper({super.key, required this.child});
@@ -131,23 +143,27 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
     super.initState();
     _checkConnectivity();
 
-    // Listen to connectivity changes
+    // Dengerin kabar dari sinyal
     Connectivity().onConnectivityChanged.listen((result) {
-      setState(() {
-        _isConnected =
-            result.contains(ConnectivityResult.mobile) ||
-            result.contains(ConnectivityResult.wifi);
-      });
+      if (mounted) {
+        setState(() {
+          _isConnected =
+              result.contains(ConnectivityResult.mobile) ||
+              result.contains(ConnectivityResult.wifi);
+        });
+      }
     });
   }
 
   Future<void> _checkConnectivity() async {
     final result = await Connectivity().checkConnectivity();
-    setState(() {
-      _isConnected =
-          result.contains(ConnectivityResult.mobile) ||
-          result.contains(ConnectivityResult.wifi);
-    });
+    if (mounted) {
+      setState(() {
+        _isConnected =
+            result.contains(ConnectivityResult.mobile) ||
+            result.contains(ConnectivityResult.wifi);
+      });
+    }
   }
 
   @override
@@ -172,14 +188,14 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Tidak ada koneksi internet',
+                          'Yah, internetnya putus bos',
                           style: TextStyle(color: Colors.white, fontSize: 14),
                         ),
                       ),
                       TextButton(
                         onPressed: _checkConnectivity,
                         child: const Text(
-                          'Retry',
+                          'Coba Lagi',
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
@@ -194,78 +210,7 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
   }
 }
 
-class AuthCheck extends StatefulWidget {
-  const AuthCheck({super.key});
-
-  @override
-  State<AuthCheck> createState() => _AuthCheckState();
-}
-
-class _AuthCheckState extends State<AuthCheck> {
-  @override
-  void initState() {
-    super.initState();
-    _checkAuth();
-  }
-
-  void _checkAuth() async {
-    try {
-      final AuthService auth = AuthService();
-      final userId = await auth.getCurrentUserId();
-      final user = await auth.getCurrentUser();
-
-      if (!mounted) return;
-
-      if (userId != null && user != null) {
-        if (user.role == 'admin' || user.role == 'ketua_rt') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const AdminMainScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const UserMainScreen()),
-          );
-        }
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    } catch (e) {
-      // Handle error
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            HouseLoadingWidget(size: 80),
-            SizedBox(height: 20),
-            Text(
-              'Memuat Tiara Finance...',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Error fallback app
+/// Screen Error Darurat
 class ErrorApp extends StatelessWidget {
   final String error;
   const ErrorApp({super.key, required this.error});
@@ -283,7 +228,7 @@ class ErrorApp extends StatelessWidget {
                 const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 20),
                 const Text(
-                  'Gagal menginisialisasi aplikasi',
+                  'Waduh, Gagal Start Nih',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
@@ -296,7 +241,7 @@ class ErrorApp extends StatelessWidget {
                 const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: () {
-                    // Restart app
+                    // Keluar aja deh
                     SystemNavigator.pop();
                   },
                   child: const Text('Tutup Aplikasi'),

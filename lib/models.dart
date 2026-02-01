@@ -56,12 +56,14 @@ class IuranModel {
   final String nama;
   final int harga;
   final String deskripsi;
+  final String periode; // 'bulanan', 'tahunan', atau 'sekali' (dadakan)
 
   IuranModel({
     required this.id,
     required this.nama,
     required this.harga,
     required this.deskripsi,
+    this.periode = 'bulanan',
   });
 
   factory IuranModel.fromMap(Map<String, dynamic> map, String id) {
@@ -70,11 +72,29 @@ class IuranModel {
       nama: map['nama'] ?? '',
       harga: map['harga'] ?? 0,
       deskripsi: map['deskripsi'] ?? '',
+      periode: map['periode'] ?? 'bulanan',
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {'nama': nama, 'harga': harga, 'deskripsi': deskripsi};
+    return {'nama': nama, 'harga': harga, 'deskripsi': deskripsi, 'periode': periode};
+  }
+  
+  // Helper buat ngecek iurannya berulang apa kagak
+  bool get isRecurring => periode == 'bulanan' || periode == 'tahunan';
+  
+  // Helper buat nampilin periode biar cantik
+  String get periodeDisplay {
+    switch (periode) {
+      case 'bulanan':
+        return 'Bulanan';
+      case 'tahunan':
+        return 'Tahunan';
+      case 'sekali':
+        return 'Sekali/Dadakan';
+      default:
+        return periode;
+    }
   }
 }
 
@@ -137,7 +157,7 @@ class TransaksiModel {
   }
 }
 
-// ========== NEW MODELS FOR FEATURES ==========
+// ========== MODEL BARU BIAR MAKIN CANGGIH ==========
 
 class PengumumanModel {
   final String id;
@@ -293,6 +313,70 @@ class ForumMessageModel {
       'sender_name': senderName,
       'content': content,
       'timestamp': Timestamp.fromDate(timestamp),
+    };
+  }
+}
+
+// Model buat Wadul alias Laporan Warga
+class PengaduanModel {
+  final String id;
+  final String userId;
+  final String userName;
+  final String title;
+  final String description;
+  final String category; // 'kebersihan', 'keamanan', 'fasilitas', 'lainnya'
+  final String? photoUrl;
+  final DateTime createdAt;
+  final String status; // 'pending', 'proses', 'selesai'
+  final String? adminResponse;
+  final DateTime? respondedAt;
+
+  PengaduanModel({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.title,
+    required this.description,
+    required this.category,
+    this.photoUrl,
+    required this.createdAt,
+    required this.status,
+    this.adminResponse,
+    this.respondedAt,
+  });
+
+  factory PengaduanModel.fromMap(Map<String, dynamic> map, String id) {
+    return PengaduanModel(
+      id: id,
+      userId: map['user_id'] ?? '',
+      userName: map['user_name'] ?? '',
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? 'lainnya',
+      photoUrl: map['photo_url'],
+      createdAt: (map['created_at'] as Timestamp).toDate(),
+      status: map['status'] ?? 'pending',
+      adminResponse: map['admin_response'],
+      respondedAt: map['responded_at'] != null 
+          ? (map['responded_at'] as Timestamp).toDate() 
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'user_id': userId,
+      'user_name': userName,
+      'title': title,
+      'description': description,
+      'category': category,
+      'photo_url': photoUrl,
+      'created_at': Timestamp.fromDate(createdAt),
+      'status': status,
+      'admin_response': adminResponse,
+      'responded_at': respondedAt != null 
+          ? Timestamp.fromDate(respondedAt!) 
+          : null,
     };
   }
 }

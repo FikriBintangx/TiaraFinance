@@ -1,21 +1,21 @@
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
-/// Security utilities untuk password hashing dan validation
+/// Satpam Digital: Urus Password & Validasi
 class SecurityUtils {
-  /// Hash password menggunakan SHA-256
+  /// Acak-acak password pake SHA-256 biar pusing hacker
   static String hashPassword(String password) {
     final bytes = utf8.encode(password);
     final hash = sha256.convert(bytes);
     return hash.toString();
   }
 
-  /// Verify password dengan hash
+  /// Cek passwordnya bener kaga
   static bool verifyPassword(String password, String hashedPassword) {
     return hashPassword(password) == hashedPassword;
   }
 
-  /// Validate password strength
+  /// Cek passwordnya lemah ato kuat
   static String? validatePassword(String password) {
     if (password.isEmpty) {
       return 'Password tidak boleh kosong';
@@ -30,7 +30,7 @@ class SecurityUtils {
     return null; // Valid
   }
 
-  /// Validate email format
+  /// Cek format email
   static String? validateEmail(String email) {
     if (email.isEmpty) {
       return 'Email tidak boleh kosong';
@@ -42,7 +42,7 @@ class SecurityUtils {
     return null; // Valid
   }
 
-  /// Validate phone number (Indonesia)
+  /// Cek nomor HP (Indo punya)
   static String? validatePhoneNumber(String phone) {
     if (phone.isEmpty) {
       return null; // Optional field
@@ -62,7 +62,7 @@ class SecurityUtils {
     return null; // Valid
   }
 
-  /// Validate nama (tidak boleh kosong, minimal 3 karakter)
+  /// Cek nama (jangan kosong woy)
   static String? validateName(String name) {
     if (name.isEmpty) {
       return 'Nama tidak boleh kosong';
@@ -76,7 +76,7 @@ class SecurityUtils {
     return null; // Valid
   }
 
-  /// Validate amount (harus angka positif)
+  /// Cek duit (harus ada angkanya)
   static String? validateAmount(String amount) {
     if (amount.isEmpty) {
       return 'Jumlah tidak boleh kosong';
@@ -91,7 +91,7 @@ class SecurityUtils {
     return null; // Valid
   }
 
-  /// Sanitize input (remove dangerous characters)
+  /// Bersihin input biar ga kena suntik (injection)
   static String sanitizeInput(String input) {
     return input
         .replaceAll(RegExp(r'[<>]'), '') // Remove HTML tags

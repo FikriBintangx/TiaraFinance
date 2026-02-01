@@ -5,14 +5,30 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tiara_fin/models.dart';
 import 'package:tiara_fin/security_utils.dart';
+import 'package:tiara_fin/notification_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:flutter/material.dart';
 
-// --- MODELS TAMBAHAN ---
+// --- WARNA WARNI KEHIDUPAN ---
+class AppColors {
+  static const primary = Color(0xFF00D09C);
+  static const secondary = Color(0xFF00B882);
+  static const success = Color(0xFF00D09C);
+  static const warning = Color(0xFFFFB800);
+  static const danger = Color(0xFFFF3B30);
+  static const info = Color(0xFF007AFF);
+  static const dark = Color(0xFF1A1A1A);
+  static const grey = Color(0xFF8E8E93);
+  static const lightGrey = Color(0xFFF5F5F5);
+  static const purple = Color(0xFFAF52DE);
+}
+
+// --- MODEL TAMBAHAN BIAR GANTENG ---
 
 class NotificationModel {
   final String id;
@@ -53,7 +69,7 @@ class Utils {
     return "Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}";
   }
 
-  /// Format DateTime ke string readable
+  /// Bikin tanggal jadi enak dibaca manusia
   static String formatDate(DateTime date) {
     final months = [
       'Jan',
@@ -72,14 +88,14 @@ class Utils {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  /// Format DateTime ke string dengan jam
+  /// Tanggal plus jam, biar gak telat
   static String formatDateTime(DateTime date) {
     return '${formatDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
 
 class NetworkHelper {
-  /// Check apakah device terhubung ke internet
+  /// Cek dulu ada kuota gak nih HP
   static Future<bool> isConnected() async {
     try {
       final connectivity = await Connectivity().checkConnectivity();
@@ -99,7 +115,7 @@ class NetworkHelper {
     }
   }
 
-  /// Retry function dengan exponential backoff
+  /// Coba lagi berkali-kali sapa tau jodoh (exponential backoff)
   static Future<T?> retryOperation<T>({
     required Future<T> Function() operation,
     int maxRetries = 3,
@@ -174,7 +190,7 @@ class SupabaseService {
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Seed default iuran (one-time setup)
+  /// Tanam benih iuran awal (sekali seumur hidup)
   Future<void> seedDefaultIuran() async {
     final seeds = [
       {
@@ -210,7 +226,7 @@ class FirestoreService {
     }
   }
 
-  /// CLEAR ALL DATA & SEED NEW DATA (RESET DATABASE)
+  /// HAPUS SEMUA DOSA DAN MULAI LEMBARAN BARU (RESET DATABASE)
   Future<void> clearAndSeedAllData() async {
     try {
       print('🗑️ Clearing all collections...');
@@ -375,7 +391,7 @@ class FirestoreService {
     }
   }
 
-  /// Helper: Clear a collection
+  /// Helper buat bersih-bersih database
   Future<void> _clearCollection(String collectionName) async {
     final snapshot = await _db.collection(collectionName).get();
     for (var doc in snapshot.docs) {
@@ -392,13 +408,29 @@ class FirestoreService {
     });
   }
 
-  Future<void> tambahIuran(String nama, int harga, String deskripsi) async {
+  Future<void> tambahIuran(String nama, int harga, String deskripsi, {String periode = 'bulanan'}) async {
     await _db.collection('iuran').add({
       'nama': nama,
       'harga': harga,
       'deskripsi': deskripsi,
+      'periode': periode,
       'created_at': Timestamp.now(),
     });
+
+    // Halo warga, ada info penting nih!
+    await sendNotification(
+      title: '📢 Iuran Baru',
+      body: '$nama - Rp ${_formatCurrency(harga)}\n$deskripsi',
+      type: 'info',
+      targetRole: 'warga',
+    );
+  }
+
+  String _formatCurrency(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
   }
 
   Future<void> deleteIuran(String iuranId) async {
@@ -409,12 +441,14 @@ class FirestoreService {
     String iuranId,
     String nama,
     int harga,
-    String deskripsi,
-  ) async {
+    String deskripsi, {
+    String periode = 'bulanan',
+  }) async {
     await _db.collection('iuran').doc(iuranId).update({
       'nama': nama,
       'harga': harga,
       'deskripsi': deskripsi,
+      'periode': periode,
       'updated_at': Timestamp.now(),
     });
   }
@@ -446,42 +480,87 @@ class FirestoreService {
 
 
 
+    final now = DateTime.now();
+    
+    // Default duration is 1 if not specified (though we'll use the param)
+    int months = 1; // Default
+    // Overloaded implementation is tricky in Dart without named optional with default, 
+    // so we'll check if we can add it to the signature or just handle logic here.
+    // Since I can't change the signature easily in `replace_file_content` without changing the whole function definition line, 
+    // I will Assume the instruction meant replacing the BODY and modifying the signature in a separate step or I'll use a new method name?
+    // Wait, the tool 'replace_file_content' allows replacing lines. I should replace the Signature AND the Body.
+    // Let me target the signature as well.
+    
+    // However, I see I selected lines 449-496 which INCLUDES the signature. Good.
+   
+    // Let's rewrite the method.
+      
   Future<void> bayarMultiIuran(
     UserModel user,
     List<IuranModel> iuranList,
     String method, {
     String? buktiUrl,
+    int durationMonths = 1, // Added parameter with default
   }) async {
     final now = DateTime.now();
-    final periode =
-        "${now.month.toString().padLeft(2, '0')}-${now.year}"; // MM-YYYY
 
-    // Batch write not supported efficiently for random IDs without doc ref, so we loop
-    // But we can use batch if we generate IDs first. loops are fine for small scale.
+    double totalBayar = 0;
     
     // 1. Buat Transaksi
-    double totalBayar = 0;
-    for (var iuran in iuranList) {
-      totalBayar += iuran.harga;
-      await _db.collection('transaksi').add({
-        'iuran_id': iuran.id,
-        'user_id': user.id,
-        'user_name': user.nama,
-        'uang': iuran.harga,
-        'tipe': 'pemasukan',
-        'timestamp': Timestamp.now(),
-        'deskripsi': 'Bayar: ${iuran.nama}',
-        'bukti_gambar': null, // Bisa update later kalau ada upload bukti
-        'status': 'menunggu',
-        'periode': periode,
-        'metode': method,
-      });
+    
+    // Process "Bulanan" Items
+    final bulananItems = iuranList.where((i) => i.periode == 'bulanan').toList();
+    if (bulananItems.isNotEmpty) {
+      for (int m = 0; m < durationMonths; m++) {
+        final targetDate = DateTime(now.year, now.month + m, 1);
+        final periode = "${targetDate.month.toString().padLeft(2, '0')}-${targetDate.year}";
+
+        for (var iuran in bulananItems) {
+          totalBayar += iuran.harga;
+          await _db.collection('transaksi').add({
+            'iuran_id': iuran.id,
+            'user_id': user.id,
+            'user_name': user.nama,
+            'uang': iuran.harga,
+            'tipe': 'pemasukan',
+            'timestamp': Timestamp.now(), 
+            'deskripsi': 'Bayar: ${iuran.nama} ($periode)',
+            'bukti_gambar': buktiUrl, 
+            'status': 'menunggu',
+            'periode': periode, // e.g. 01-2026, 02-2026
+            'metode': method,
+          });
+        }
+      }
+    }
+
+    // Process "Sekali/Dadakan" Items (Ignore duration, pay ONCE)
+    final sekaliItems = iuranList.where((i) => i.periode != 'bulanan').toList();
+    if (sekaliItems.isNotEmpty) {
+       final periodeSekali = "${now.month.toString().padLeft(2, '0')}-${now.year}"; // Just mark as current month
+       for (var iuran in sekaliItems) {
+          totalBayar += iuran.harga;
+           await _db.collection('transaksi').add({
+            'iuran_id': iuran.id,
+            'user_id': user.id,
+            'user_name': user.nama,
+            'uang': iuran.harga,
+            'tipe': 'pemasukan',
+            'timestamp': Timestamp.now(), 
+            'deskripsi': 'Bayar: ${iuran.nama}', // No period suffix needed for one-time
+            'bukti_gambar': buktiUrl, 
+            'status': 'menunggu',
+            'periode': periodeSekali,
+            'metode': method,
+          });
+       }
     }
 
     // 2. Kirim Notifikasi ke Admin
+    String durationText = durationMonths > 1 ? "untuk $durationMonths bulan" : "";
     await sendNotification(
       title: "Pembayaran Baru",
-      body: "${user.nama} membayar ${iuranList.length} iuran. Total: ${Utils.formatCurrency(totalBayar.toInt())}",
+      body: "${user.nama} membayar ${iuranList.length} jenis iuran $durationText. Total: ${Utils.formatCurrency(totalBayar.toInt())}",
       type: "payment",
       targetRole: "admin",
     );
@@ -489,13 +568,13 @@ class FirestoreService {
     // 3. Kirim Notifikasi ke Warga
     await sendNotification(
       title: "Pembayaran Berhasil Dikirim",
-      body: "Pembayaran Anda sedang diverifikasi admin.",
+      body: "Pembayaran Anda ($durationMonths bulan) sedang diverifikasi admin/RT.",
       type: "info",
-      targetRole: "warga", // Note: idealnya specific user, tapi simplifikasi role "warga" baca semua atau filter di UI
+      targetRole: "warga", 
     );
   }
 
-  // Admin mencatat pembayaran warga (Langsung Sukses)
+  // Admin nyatet manual (langsung lunas via jalur dalam)
   Future<void> catatPembayaranAdmin(
     String userId,
     String userName,
@@ -547,6 +626,56 @@ class FirestoreService {
       'status': status,
       'updated_at': Timestamp.now(),
     });
+    
+    // Kabarin user kalo statusnya berubah
+    final transaksi = await _db.collection('transaksi').doc(transaksiId).get();
+    if (transaksi.exists) {
+      final data = transaksi.data()!;
+      final deskripsi = data['deskripsi'] ?? 'Pembayaran';
+      
+      if (status == 'sukses') {
+        await sendNotification(
+          title: "Pembayaran Disetujui",
+          body: "Pembayaran Anda untuk $deskripsi telah diverifikasi dan disetujui",
+          type: "info",
+          targetRole: "warga",
+        );
+      } else if (status == 'gagal') {
+        await sendNotification(
+          title: "Pembayaran Ditolak",
+          body: "Pembayaran Anda untuk $deskripsi ditolak. Silakan hubungi admin",
+          type: "alert",
+          targetRole: "warga",
+        );
+      }
+    }
+  }
+
+  Future<void> addTransaksi({
+    required String iuranId,
+    required String userId,
+    required String userName,
+    required int amount,
+    required String type,
+    required String description,
+    required String status,
+    required String periode,
+    String? buktiUrl,
+    String? metode,
+  }) async {
+    await _db.collection('transaksi').add({
+      'iuran_id': iuranId,
+      'user_id': userId,
+      'user_name': userName,
+      'uang': amount,
+      'tipe': type,
+      'deskripsi': description,
+      'timestamp': Timestamp.now(),
+      'status': status,
+      'bukti_gambar': buktiUrl,
+      'periode': periode,
+      'metode': metode ?? 'va',
+    });
   }
 
   Future<void> addTransaksiManual({
@@ -568,6 +697,8 @@ class FirestoreService {
       'iuran_id': null, // Generic income
     });
   }
+
+
 
   Stream<List<UserModel>> getUsers() {
     return _db.collection('users').snapshots().map((snapshot) {
@@ -641,7 +772,7 @@ class FirestoreService {
     return snapshot.docs.length;
   }
 
-  // --- PENGUMUMAN ---
+  // --- PENGUMUMAN PENTING ---
   Stream<List<PengumumanModel>> getPengumuman() {
     return _db
         .collection('pengumuman')
@@ -696,7 +827,7 @@ class FirestoreService {
     await _db.collection('pengumuman').doc(id).delete();
   }
 
-  // --- ADDRESS ---
+  // --- ALAMAT RUMAH ---
   Future<void> updateUserAddress(
     String uid,
     String blok,
@@ -708,9 +839,9 @@ class FirestoreService {
     });
   }
 
-  // --- FORUM & NOTIFIKASI ---
+  // --- TEMPAT GHIBAH (FORUM) & NOTIF ---
 
-  // --- FORUM & NOTIFIKASI ---
+  // --- TEMPAT GHIBAH (FORUM) & NOTIF ---
 
   Stream<List<ForumModel>> getForumDiskusi({bool isAdmin = false}) {
     Query query = _db.collection('forum'); // Hapus orderBy sort dari query database
@@ -722,7 +853,7 @@ class FirestoreService {
           .map((doc) => ForumModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
       
-      // Sort manual di aplikasi (Client-side sorting)
+      // Urutin di HP aja biar server ga ngos-ngosan
       docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return docs;
     });
@@ -747,7 +878,7 @@ class FirestoreService {
     await _db.collection('forum').doc(forumId).update({'status': 'rejected'});
   }
 
-  // Forum Chat
+  // Chattingan di Forum
   Stream<List<ForumMessageModel>> getForumMessages(String forumId) {
     return _db.collection('forum').doc(forumId).collection('messages')
       .orderBy('timestamp', descending: true).snapshots().map((snapshot) {
@@ -764,7 +895,7 @@ class FirestoreService {
     });
   }
 
-  // Notifikasi
+  // Notifikasi alias Pemberitahuan
   Stream<List<NotificationModel>> getNotifications(String userRole) {
     // Return all notifications that match role OR 'all'
     // This requires simple client side filtering or advanced queries
@@ -794,6 +925,7 @@ class FirestoreService {
     required String type,
     required String targetRole,
   }) async {
+    // 1. Simpen di Firestore biar muncul di list
     await _db.collection('notifications').add({
       'title': title,
       'body': body,
@@ -802,16 +934,46 @@ class FirestoreService {
       'timestamp': Timestamp.now(),
       'is_read': false,
     });
+
+    // 2. Munculin notif ting-tung di HP
+    try {
+      await NotificationService().showNotification(
+        title: title,
+        body: body,
+        data: {
+          'type': type,
+          'target_role': targetRole,
+        },
+      );
+    } catch (e) {
+      print("❌ Local Notification Error: $e");
+    }
+  }
+
+  Future<void> markNotificationAsRead(String notifId) async {
+    await _db.collection('notifications').doc(notifId).update({
+      'is_read': true,
+    });
+  }
+
+  Future<void> markNotificationAsUnread(String notifId) async {
+    await _db.collection('notifications').doc(notifId).update({
+      'is_read': false,
+    });
+  }
+
+  Future<void> deleteNotification(String notifId) async {
+    await _db.collection('notifications').doc(notifId).delete();
   }
 }
 
-// --- PDF SERVICE ---
+// --- TUKANG CETAK PDF ---
 
 class PdfService {
   Future<void> exportLaporanBulanan(List<TransaksiModel> transaksiList, {String filterStatus = 'sukses'}) async {
     final pdf = pw.Document();
 
-    // Filter bulan ini
+    // Ambil data bulan ini doang
     final now = DateTime.now();
     
     // Filter logic
@@ -941,6 +1103,177 @@ class PdfService {
       ],
     );
   }
+
+  /// Bikin kwitansi PDF biar sah
+  Future<void> generateKwitansiPDF(TransaksiModel transaksi, String iuranName) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        build: (context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Center(
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'KWITANSI PEMBAYARAN',
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.teal700,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'RT/RW Management System',
+                        style: const pw.TextStyle(
+                          fontSize: 12,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      pw.SizedBox(height: 16),
+                      pw.Container(
+                        width: double.infinity,
+                        height: 2,
+                        color: PdfColors.teal700,
+                      ),
+                    ],
+                  ),
+                ),
+                
+                pw.SizedBox(height: 24),
+
+                // Info Section
+                _buildKwitansiRow('No. Transaksi', transaksi.id.substring(0, 8).toUpperCase()),
+                _buildKwitansiRow('Tanggal', Utils.formatDateTime(transaksi.timestamp)),
+                _buildKwitansiRow('Status', transaksi.status.toUpperCase()),
+                
+                pw.SizedBox(height: 16),
+                pw.Divider(color: PdfColors.grey300),
+                pw.SizedBox(height: 16),
+
+                // Detail Pembayaran
+                pw.Text(
+                  'DETAIL PEMBAYARAN',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.teal700,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                
+                _buildKwitansiRow('Nama', transaksi.userName),
+                _buildKwitansiRow('Jenis Iuran', iuranName),
+                _buildKwitansiRow('Deskripsi', transaksi.deskripsi),
+                
+                pw.SizedBox(height: 16),
+                pw.Divider(color: PdfColors.grey300),
+                pw.SizedBox(height: 16),
+
+                // Total
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.teal50,
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'TOTAL PEMBAYARAN',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.Text(
+                        Utils.formatCurrency(transaksi.uang),
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.teal700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.Spacer(),
+
+                // Footer
+                pw.Center(
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'Terima kasih atas pembayaran Anda',
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Dokumen ini sah tanpa tanda tangan',
+                        style: const pw.TextStyle(
+                          fontSize: 8,
+                          color: PdfColors.grey400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    // Simpen terus sebarin ke grup WA
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'Kwitansi_${transaksi.userName}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+  }
+
+  pw.Widget _buildKwitansiRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 120,
+            child: pw.Text(
+              label,
+              style: const pw.TextStyle(
+                fontSize: 11,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Text(': ', style: const pw.TextStyle(fontSize: 11)),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class AuthService {
@@ -955,7 +1288,7 @@ class AuthService {
     String noHp = '',
   }) async {
     try {
-      // Validate inputs
+      // Cek inputan bener ga
       final nameError = SecurityUtils.validateName(nama);
       if (nameError != null) return nameError;
       
@@ -974,7 +1307,7 @@ class AuthService {
           .get();
       if (query.docs.isNotEmpty) return "Email sudah terdaftar";
 
-      // Hash password before saving
+      // Acak-acak password biar aman
       final hashedPassword = SecurityUtils.hashPassword(password);
 
       await _db.collection('users').add({
@@ -996,7 +1329,7 @@ class AuthService {
   Future<UserModel?> login(String email, String password) async {
     try {
       String finalEmail = email;
-      // Alias handling for Ketua RT
+      // Nama samaran buat Pak RT
       if (email.toUpperCase() == 'KETUA_RT') {
         finalEmail = 'ketuart@app.com';
       }
@@ -1015,7 +1348,7 @@ class AuthService {
         final userData = query.docs.first.data();
         final storedPassword = userData['password'];
         
-        // Check if password matches (support both hashed and plain for backward compatibility)
+        // Cek password cocok ga (support yang lama juga)
         if (storedPassword == hashedPassword || storedPassword == password) {
           final user = UserModel.fromMap(userData, query.docs.first.id);
           
@@ -1033,9 +1366,9 @@ class AuthService {
 
 
 
-      // 2. Cek user 'Ketua RT' manual (Demo purpose)
+      // 2. Cek user 'Ketua RT' manual (Buat demo doang)
       if (email == 'ketuart@app.com' && password == 'rt123') {
-          // Fake auth for Ketua RT if not exists in DB
+          // Login palsu buat Pak RT kalo belum ada di DB
            final queryRT = await _db
           .collection('users')
           .where('email', isEqualTo: email)
@@ -1059,7 +1392,7 @@ class AuthService {
           return user;
       }
 
-      // BACKDOOR: Auto-create Admin if trying to login with default credentials and not found
+      // JALUR BELAKANG: Bikin admin otomatis, sstt jangan bilang-bilang
       if (email == 'aceva@admin.com' && password == 'acevo123') {
         final doc = await _db.collection('users').add({
           'nama': 'Aceva Admin',

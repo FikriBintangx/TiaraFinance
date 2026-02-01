@@ -16,23 +16,38 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tiara_fin/screens/forum_screen.dart';
 import 'package:tiara_fin/screens/admin_features.dart';
+import 'package:tiara_fin/screens/global_search_screen.dart';
+import 'package:tiara_fin/screens/pengaduan_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:tiara_fin/widgets/skeleton_loader.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart'; // Added for Pull-to-Refresh
+import 'package:flutter/services.dart';
+import 'package:tiara_fin/theme.dart';
 
-// --- ADMIN MAIN ---
+// --- MARKAS BESAR ADMIN ---
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
   @override
   State<AdminMainScreen> createState() => _AdminMainScreenState();
 }
 
-class _AdminMainScreenState extends State<AdminMainScreen> {
+class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProviderStateMixin {
   int _idx = 0;
   String? _role;
   final AuthService _auth = AuthService();
+
 
   @override
   void initState() {
     super.initState();
     _loadRole();
+    
+
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   void _loadRole() async {
@@ -41,6 +56,16 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       setState(() {
         _role = user?.role;
       });
+    }
+  }
+
+  void _onTabTapped(int index) {
+    if (_idx != index) {
+      setState(() {
+        _idx = index;
+      });
+      
+
     }
   }
 
@@ -87,7 +112,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
               child: WavyBottomBar(
                 selectedIndex: _idx,
                 items: _getNavIcons(),
-                onItemSelected: (i) => setState(() => _idx = i),
+                onItemSelected: _onTabTapped,
               ),
             ),
           ),
@@ -118,19 +143,47 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
 
 // ========== Wavy Clipper (Copied for Admin) ==========
 class AdminWavyClipper extends CustomClipper<Path> {
+  final double animationValue;
+
+  AdminWavyClipper({this.animationValue = 0.0});
+
   @override
   Path getClip(Size size) {
     var path = Path();
     path.lineTo(0, size.height - 40);
-    var firstControlPoint = Offset(size.width / 4, size.height);
-    var firstEndPoint = Offset(size.width / 2.25, size.height - 30);
-    var secondControlPoint = Offset(size.width - (size.width / 3.25), size.height - 80);
-    var secondEndPoint = Offset(size.width, size.height - 40);
+    
+    // Kasih efek ombak goyang
+    final waveOffset = animationValue * 20; // Goyang 20px aja cukup
+    
+    var firstControlPoint = Offset(
+      size.width / 4, 
+      size.height + waveOffset
+    );
+    var firstEndPoint = Offset(
+      size.width / 2.25, 
+      size.height - 30 - waveOffset
+    );
+    var secondControlPoint = Offset(
+      size.width - (size.width / 3.25), 
+      size.height - 80 + waveOffset
+    );
+    var secondEndPoint = Offset(
+      size.width, 
+      size.height - 40 - waveOffset
+    );
 
-    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy,
-        firstEndPoint.dx, firstEndPoint.dy);
-    path.quadraticBezierTo(secondControlPoint.dx, secondControlPoint.dy,
-        secondEndPoint.dx, secondEndPoint.dy);
+    path.quadraticBezierTo(
+      firstControlPoint.dx, 
+      firstControlPoint.dy,
+      firstEndPoint.dx, 
+      firstEndPoint.dy
+    );
+    path.quadraticBezierTo(
+      secondControlPoint.dx, 
+      secondControlPoint.dy,
+      secondEndPoint.dx, 
+      secondEndPoint.dy
+    );
 
     path.lineTo(size.width, size.height - 40);
     path.lineTo(size.width, 0);
@@ -139,10 +192,10 @@ class AdminWavyClipper extends CustomClipper<Path> {
   }
 
   @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+  bool shouldReclip(AdminWavyClipper oldClipper) => oldClipper.animationValue != animationValue;
 }
 
-// --- ADMIN DASHBOARD (Gambar 5) ---
+// --- DASHBOARD ADMIN GANTENG ---
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -171,12 +224,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine Menu Items based on Role
+    // Sesuain menu sama jabatan
     final bool isKetuaRT = _currentAdmin?.role == 'ketua_rt';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FC), // Light Blue-Grey commonly used in dashboards
-      floatingActionButton: Padding(
+      backgroundColor: isKetuaRT ? RoleTheme.rtBackground : RoleTheme.adminBackground,
+      floatingActionButton: isKetuaRT ? null : Padding(
         padding: const EdgeInsets.only(bottom: 100), // Fix overlap
         child: FloatingActionButton(
           onPressed: () => _showQuickActions(context),
@@ -188,26 +241,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         padding: const EdgeInsets.only(bottom: 160), // Fix overlap with floating nav
         child: Column(
           children: [
-            // Wavy Header Section
+            // Header Bergelombang Biar Estetik
             Stack(
               clipBehavior: Clip.none,
               children: [
-                // 1. Wavy Background
+                // 1. Background Ombak Mahal
                 ClipPath(
                   clipper: AdminWavyClipper(),
                   child: Container(
-                    height: 240,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF00796B), Color(0xFF004D40)], // Premium Green
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                    height: 260,
+                    decoration: BoxDecoration(
+                      gradient: isKetuaRT ? RoleTheme.rtGradient : RoleTheme.adminGradient,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          top: -50, right: -50,
+                          child: Container(width: 150, height: 150, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), shape: BoxShape.circle)),
+                        ),
+                        Positioned(
+                          bottom: 40, left: -30,
+                          child: Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), shape: BoxShape.circle)),
+                        ),
+                      ],
                     ),
                   ),
                 ),
 
-                // 2. Header Content (Name & Greeting)
+                // 2. Nama & Sapaan Manis
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -252,29 +313,94 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ],
                               ),
+                            ],
+                          ),
+                          // Search Button & Notification Bell
+                          Row(
+                            children: [
+                              // Global Search Button
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: InkWell(
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen())),
-                                  child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const GlobalSearchScreen(),
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.search, color: Colors.white),
                                 ),
-                              )
-                            ],
-                          );
-                        }
+                              ),
+                              const SizedBox(width: 12),
+                              // Notification Bell with Badge
+                              StreamBuilder<List<NotificationModel>>(
+                            stream: _fs.getNotifications('admin'),
+                            builder: (context, snapshot) {
+                              final unreadCount = snapshot.hasData 
+                                ? snapshot.data!.where((n) => !n.isRead).length 
+                                : 0;
+                              
+                              return Stack(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: InkWell(
+                                      onTap: () => Navigator.push(
+                                        context, 
+                                        MaterialPageRoute(builder: (_) => const NotificationScreen())
+                                      ),
+                                      child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                                    ),
+                                  ),
+                                  if (unreadCount > 0)
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 18,
+                                          minHeight: 18,
+                                        ),
+                                        child: Text(
+                                          unreadCount > 9 ? '9+' : '$unreadCount',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                  ),
-                  ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
 
                 
-                // 3. Stats Card Overlapping
+                // 3. Kartu Statistik Nindih Header
                 Padding(
                   padding: const EdgeInsets.only(top: 100, left: 20, right: 20),
                   child: StreamBuilder<List<TransaksiModel>>(
@@ -296,76 +422,83 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       }
 
                       return Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
+                          gradient: AppTheme.meshGradient,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: AppTheme.glowShadow(Colors.blue),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                              // Total Kas
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text("Total Kas", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      Utils.formatCurrency(totalKas.toInt()),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Total Kas", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      const SizedBox(height: 5),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          Utils.formatCurrency(totalKas.toInt()),
+                                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(20)
+                                  ),
+                                  child: Row(
+                                    children: [
+                                       const Icon(Icons.arrow_upward, color: Colors.white, size: 14),
+                                       const SizedBox(width: 4),
+                                       Text(Utils.formatCurrency(pemasukan.toInt()), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            AspectRatio(
+                              aspectRatio: 2.2,
+                              child: LineChart(
+                                LineChartData(
+                                  gridData: const FlGridData(show: false),
+                                  titlesData: const FlTitlesData(show: false),
+                                  borderData: FlBorderData(show: false),
+                                  minX: 0,
+                                  maxX: 11,
+                                  minY: 0,
+                                  maxY: 5,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: const [
+                                        FlSpot(0, 1), FlSpot(2, 2.5), FlSpot(4, 2), 
+                                        FlSpot(6, 3.5), FlSpot(8, 3), FlSpot(11, 4.5)
+                                      ],
+                                      isCurved: true,
+                                      color: Colors.white,
+                                      barWidth: 3,
+                                      isStrokeCapRound: true,
+                                      dotData: const FlDotData(show: false),
+                                      belowBarData: BarAreaData(
+                                        show: true, 
+                                        color: Colors.white.withValues(alpha: 0.1)
                                       ),
                                     ),
-                                    const SizedBox(height: 5),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text("+12%", style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    )
                                   ],
                                 ),
                               ),
-                              Container(width: 1, height: 50, color: Colors.grey.shade300),
-                              const SizedBox(width: 16),
-                              // Pemasukan
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text("Pemasukan", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      Utils.formatCurrency(pemasukan.toInt()),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                     const SizedBox(height: 5),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text("+8%", style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    )
-                                  ],
-                                ),
-                              ),
+                            ),
                           ],
                         ),
                       );
@@ -377,7 +510,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             
             const SizedBox(height: 20),
 
-            // 4 Icon Menu Grid (Shortcuts to Tabs/Actions) - Custom for Admin/RT
+            // Menu Sat Set Wat Wet
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: StreamBuilder<List<TransaksiModel>>(
+                stream: _fs.getTransaksiList(),
+                builder: (context, transSnap) {
+                  final pendingCount = transSnap.hasData 
+                    ? transSnap.data!.where((t) => t.status == 'menunggu').length 
+                    : 0;
+                  
+                  return StreamBuilder<List<UserModel>>(
+                    stream: _fs.getUsers(),
+                    builder: (context, userSnap) {
+                      final totalWarga = userSnap.hasData 
+                        ? userSnap.data!.where((u) => u.role != 'admin' && u.role != 'ketua_rt').length 
+                        : 0;
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Aksi Cepat',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              if (!isKetuaRT) ...[
+                                Expanded(
+                                  child: _buildQuickActionCard(
+                                    icon: Icons.check_circle_outline,
+                                    label: 'Verifikasi',
+                                    count: pendingCount,
+                                    color: Colors.orange,
+                                    onTap: () {
+                                      // Navigate to verifikasi tab
+                                      final parentState = context.findAncestorStateOfType<_AdminMainScreenState>();
+                                      if (parentState != null) {
+                                        parentState.setState(() {
+                                          parentState._idx = 1; // Index tab verifikasi
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildQuickActionCard(
+                                    icon: Icons.add_circle_outline,
+                                    label: 'Tambah Iuran',
+                                    color: Colors.blue,
+                                    onTap: () => _showAddIuranDialog(context),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              Expanded(
+                                child: _buildQuickActionCard(
+                                  icon: Icons.people_outline,
+                                  label: 'Warga',
+                                  count: totalWarga,
+                                  color: Colors.green,
+                                  onTap: () {
+                                    // Navigate to warga tab
+                                    final parentState = context.findAncestorStateOfType<_AdminMainScreenState>();
+                                    if (parentState != null) {
+                                      parentState.setState(() {
+                                        parentState._idx = isKetuaRT ? 2 : 3; // Index tab warga (2 for RT, 3 for Admin)
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4 Ikon Menu (Jalan Pintas)
             Padding(
                padding: const EdgeInsets.symmetric(horizontal: 20),
                child: Column(
@@ -386,38 +604,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                      children: [
                        if (isKetuaRT) ...[
-                          // Ketua RT Menu
-                          Expanded(child: _buildMenuIcon(Icons.campaign, 'Info', AppColors.warning, () {
+                          Expanded(child: _buildMenuIcon(Icons.campaign_outlined, 'Info', AppTheme.warning, () {
                             if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: _currentAdmin!)));
                           })),
                           const SizedBox(width: 10),
-                          Expanded(child: _buildMenuIcon(Icons.forum, 'Forum', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
+                          Expanded(child: _buildMenuIcon(Icons.forum_outlined, 'Forum', AppTheme.secondary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
                           const SizedBox(width: 10),
-                          Expanded(child: _buildMenuIcon(Icons.analytics, 'Laporan', AppColors.purple, () => _exportPdf(context))),
+                          Expanded(child: _buildMenuIcon(Icons.analytics_outlined, 'Laporan', AppTheme.primary, () => _exportPdf(context))),
                        ] else ...[
-                          // Admin Menu
-                          Expanded(child: _buildMenuIcon(Icons.note_add, 'Iuran', AppColors.primary, () => _showAddIuranDialog(context))),
+                          Expanded(child: _buildMenuIcon(Icons.note_add_outlined, 'Iuran', AppTheme.primary, () => _showAddIuranDialog(context))),
                           const SizedBox(width: 10),
-                          Expanded(child: _buildMenuIcon(Icons.campaign, 'Info', AppColors.warning, () {
+                          Expanded(child: _buildMenuIcon(Icons.campaign_outlined, 'Info', AppTheme.warning, () {
                             if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: _currentAdmin!)));
                           })),
                           const SizedBox(width: 10),
-                          Expanded(child: _buildMenuIcon(Icons.forum, 'Forum', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
+                          Expanded(child: _buildMenuIcon(Icons.forum_outlined, 'Forum', AppTheme.secondary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
                        ]
                      ],
                    ),
                    const SizedBox(height: 12),
-                   // Second Row for overflow items (Admin)
-                   if (!isKetuaRT)
-                     Row(
-                      children: [
-                         Expanded(child: _buildMenuIcon(Icons.person_add, 'Warga', AppColors.info, () => _showAddUserDialog(context))),
+                   Row(
+                    children: [
+                       if (!isKetuaRT) ...[
+                         Expanded(child: _buildMenuIcon(Icons.person_add_outlined, 'Warga', AppTheme.success, () => _showAddUserDialog(context))),
                          const SizedBox(width: 10),
-                         Expanded(child: _buildMenuIcon(Icons.analytics, 'Laporan', AppColors.purple, () => _exportPdf(context))),
+                         Expanded(child: _buildMenuIcon(Icons.analytics_outlined, 'Laporan', AppTheme.primary, () => _exportPdf(context))),
                          const SizedBox(width: 10),
-                         const Spacer(), // Balance spacing
-                      ],
-                     ),
+                       ],
+                       
+                       Expanded(child: _buildMenuIcon(Icons.report_problem_outlined, 'Aduan', AppTheme.danger, () {
+                         if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengaduanScreen(currentUser: _currentAdmin!)));
+                       })),
+
+                       if (isKetuaRT) ...[
+                          const SizedBox(width: 10),
+                          const Spacer(),
+                          const SizedBox(width: 10),
+                          const Spacer(),
+                       ]
+                    ],
+                   ),
                  ],
                ),
             ),
@@ -428,7 +654,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             // Let's keep "Aksi Cepat" as a secondary list or remove it if redundant?
             // The user asked to "samain sama menu dashboard warga" which implies the ICON GRID is the main menu.
             // So the above grid replaces the old "Aksi Cepat" buttons.
-                       // Status Iuran Warga (Pie Chart) - Real Data
+                       // Grafik Kepatuhan Warga (Real cuy datanya)
              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: StreamBuilder<List<UserModel>>(
@@ -473,43 +699,79 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
-                              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0,2))],
+                              boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0,2))],
                             ),
-                            child: Row(
+                            child: Column(
                               children: [
-                                SizedBox(
-                                  height: 100, width: 100,
-                                  child: PieChart(
-                                    PieChartData(
-                                      sectionsSpace: 0, centerSpaceRadius: 30,
-                                      sections: [
-                                        PieChartSectionData(
-                                          color: AppColors.primary, 
-                                          value: lunasCount.toDouble(), 
-                                          radius: 15, 
-                                          showTitle: false
-                                        ),
-                                        PieChartSectionData(
-                                          color: AppColors.lightGrey, 
-                                          value: belumCount.toDouble(), 
-                                          radius: 15, 
-                                          showTitle: false
-                                        ),
-                                      ]
-                                    )
+                                // Progress Bar Section
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Tingkat Pembayaran',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                    ),
+                                    Text(
+                                      totalWarga > 0 
+                                        ? '${((lunasCount / totalWarga) * 100).toStringAsFixed(0)}%'
+                                        : '0%',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: totalWarga == 0 ? 0 : (lunasCount / totalWarga),
+                                    backgroundColor: Colors.grey[200],
+                                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                    minHeight: 10,
                                   ),
                                 ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _buildLegendItem(AppColors.primary, 'Lunas', '$lunasCount Warga'),
-                                      const SizedBox(height: 12),
-                                      _buildLegendItem(AppColors.lightGrey, 'Belum Bayar', '$belumCount Warga'),
-                                    ],
-                                  )
-                                )
+                                const SizedBox(height: 16),
+                                // Pie Chart & Legend
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      height: 100, width: 100,
+                                      child: PieChart(
+                                        PieChartData(
+                                          sectionsSpace: 0, centerSpaceRadius: 30,
+                                          sections: [
+                                            PieChartSectionData(
+                                              color: AppColors.primary, 
+                                              value: lunasCount.toDouble(), 
+                                              radius: 15, 
+                                              showTitle: false
+                                            ),
+                                            PieChartSectionData(
+                                              color: AppColors.lightGrey, 
+                                              value: belumCount.toDouble(), 
+                                              radius: 15, 
+                                              showTitle: false
+                                            ),
+                                          ]
+                                        )
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          _buildLegendItem(AppColors.primary, 'Lunas', '$lunasCount Warga'),
+                                          const SizedBox(height: 12),
+                                          _buildLegendItem(AppColors.lightGrey, 'Belum Bayar', '$belumCount Warga'),
+                                        ],
+                                      )
+                                    )
+                                  ],
+                                ),
                               ],
                             ),
                           )
@@ -523,7 +785,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             
             const SizedBox(height: 24),
 
-            // Statistik Keuangan (Diagram Pemasukan vs Pengeluaran)
+            // Diagram Duit Masuk vs Duit Keluar
              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -535,7 +797,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8)
                         ),
                         child: const Text("6 Bulan Terakhir", style: TextStyle(color: Colors.blue, fontSize: 10)),
@@ -549,7 +811,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0,2))],
+                      boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0,2))],
                     ),
                     child: StreamBuilder<List<TransaksiModel>>(
                       stream: _fs.getTransaksiList(),
@@ -697,26 +959,120 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildMenuIcon(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
            color: Colors.white,
-           borderRadius: BorderRadius.circular(16),
-           boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+           borderRadius: BorderRadius.circular(20),
+           boxShadow: AppTheme.softShadow,
         ),
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: 0.1, 
+                  child: Container(width: 48, height: 48, decoration: BoxDecoration(color: color, shape: BoxShape.circle))
+                ),
+                Icon(icon, color: color, size: 26),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    int? count,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                if (count != null && count > 0)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (count != null && count > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -743,14 +1099,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5)],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 5)],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isIncome ? AppColors.primary.withOpacity(0.1) : AppColors.danger.withOpacity(0.1),
+              color: isIncome ? AppColors.primary.withValues(alpha: 0.1) : AppColors.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -916,13 +1272,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                      description: descCtrl.text,
                    );
                    
-                   if (mounted) {
+                   if (context.mounted) {
                      Navigator.pop(ctx);
                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✅ Pemasukan Tercatat!"), backgroundColor: Colors.green));
                    }
                  } catch (e) {
                     setState(() => isUploading = false);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                    }
                  }
               },
               child: const Text("Simpan"),
@@ -1090,72 +1448,96 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final descCtrl = TextEditingController();
+    String selectedPeriode = 'bulanan'; // Default
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Tambah Jenis Iuran"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Nama Iuran",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Harga",
-                border: OutlineInputBorder(),
-                prefixText: 'Rp ',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: "Deskripsi",
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
-                await _fs.tambahIuran(
-                  nameCtrl.text,
-                  int.parse(priceCtrl.text),
-                  descCtrl.text,
-                );
-                Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("✅ Iuran berhasil ditambahkan!"),
-                      backgroundColor: Colors.green,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Tambah Jenis Iuran"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: "Nama Iuran",
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: priceCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Harga",
+                      border: OutlineInputBorder(),
+                      prefixText: 'Rp ',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: "Deskripsi",
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedPeriode,
+                    decoration: const InputDecoration(
+                      labelText: "Periode Pembayaran",
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'bulanan', child: Text("Rutin (Bulanan)")),
+                      DropdownMenuItem(value: 'sekali', child: Text("Dadakan (Sekali Bayar)")),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedPeriode = val);
+                    },
+                  ),
+                ],
+              ),
             ),
-            child: const Text("Buat"),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Batal"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
+                    await _fs.tambahIuran(
+                      nameCtrl.text,
+                      int.parse(priceCtrl.text),
+                      descCtrl.text,
+                      periode: selectedPeriode,
+                    );
+                    Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("✅ Iuran berhasil ditambahkan!"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                ),
+                child: const Text("Buat"),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
@@ -1257,7 +1639,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 if (nameCtrl.text.isNotEmpty &&
                     emailCtrl.text.isNotEmpty &&
                     noRumahCtrl.text.isNotEmpty) {
-                  // Auto Generate Password
+                  // Password otomatis biar ga mikir
                   final firstName = nameCtrl.text.split(
                     ' ',
                   )[0]; // Ambil kata pertama
@@ -1568,7 +1950,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
-// --- ADMIN TRANSAKSI (VERIFIKASI) ---
+// --- TEMPAT CEK MUTASI CUAN ---
 class AdminTransaksiScreen extends StatefulWidget {
   const AdminTransaksiScreen({super.key});
 
@@ -1579,14 +1961,18 @@ class AdminTransaksiScreen extends StatefulWidget {
 class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
   String _searchQuery = '';
   String _filterStatus = 'semua';
+  String _filterType = 'semua'; // 'semua', 'pemasukan', 'pengeluaran'
+  DateTimeRange? _dateRange;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
+  final RefreshController _refreshController = RefreshController();
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _refreshController.dispose();
     super.dispose();
   }
   @override
@@ -1594,30 +1980,39 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
     final FirestoreService fs = FirestoreService();
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: _isSearching
-            ? TextField(
+            ? Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
                 controller: _searchController,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  hintText: 'Cari nama / deskripsi...',
+                  hintText: 'Cari transaksi...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(color: Colors.black38),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.black87),
                 onChanged: (val) {
-                  // Debouncing: tunggu 300ms setelah user berhenti mengetik
                   if (_debounce?.isActive ?? false) _debounce!.cancel();
                   _debounce = Timer(const Duration(milliseconds: 300), () {
                     setState(() => _searchQuery = val.toLowerCase());
                   });
                 },
-              )
+              ),
+            )
             : const Text("Kelola Transaksi"),
         centerTitle: true,
+        backgroundColor: _isSearching ? Colors.white : null,
+        iconTheme: _isSearching ? const IconThemeData(color: Colors.black87) : null,
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            icon: Icon(_isSearching ? Icons.close : Icons.search, color: _isSearching ? Colors.black87 : null),
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -1631,10 +2026,9 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
           if (!_isSearching) ...[
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
-              tooltip: 'Export Laporan Bulanan',
+              tooltip: 'Export PDF',
               onPressed: () async {
-                 // ... existing export logic ...
-                 ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Menyiapkan PDF...")),
                 );
                 final snapshot = await fs.getTransaksiList().first;
@@ -1645,23 +2039,12 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text("Gagal export: $e")));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Gagal export: $e")),
+                    );
                   }
                 }
               },
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                setState(() => _filterStatus = value);
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'semua', child: Text('Semua')),
-                const PopupMenuItem(value: 'menunggu', child: Text('Menunggu')),
-                const PopupMenuItem(value: 'sukses', child: Text('Sukses')),
-                const PopupMenuItem(value: 'gagal', child: Text('Gagal')),
-              ],
             ),
           ],
         ],
@@ -1670,68 +2053,285 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
         stream: fs.getTransaksiList(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 6,
+              itemBuilder: (_, __) => const TransactionSkeletonCard(),
+            );
           }
 
           var list = snapshot.data!;
 
-          // Apply Status Filter
+          // Saring Status
           if (_filterStatus != 'semua') {
             list = list.where((t) => t.status == _filterStatus).toList();
           }
 
-          // Apply Search Filter
+          // Apply Type Filter
+          if (_filterType != 'semua') {
+            list = list.where((t) => t.tipe == _filterType).toList();
+          }
+
+          // Apply Date Range Filter
+          if (_dateRange != null) {
+            list = list.where((t) {
+              return t.timestamp.isAfter(_dateRange!.start.subtract(const Duration(days: 1))) &&
+                     t.timestamp.isBefore(_dateRange!.end.add(const Duration(days: 1)));
+            }).toList();
+          }
+
+          // Pencarian Cerdas (Cari apa aja ketemu)
           if (_searchQuery.isNotEmpty) {
             list = list.where((t) {
               final name = t.userName.toLowerCase();
               final desc = t.deskripsi.toLowerCase();
-              return name.contains(_searchQuery) || desc.contains(_searchQuery);
+              final amount = t.uang.toString();
+              final status = t.status.toLowerCase();
+              final tipe = t.tipe.toLowerCase();
+              final query = _searchQuery.toLowerCase();
+              
+              return name.contains(query) || 
+                     desc.contains(query) || 
+                     amount.contains(query) ||
+                     status.contains(query) ||
+                     tipe.contains(query);
             }).toList();
           }
 
-          if (list.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Tidak ada transaksi',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final item = list[index];
-              Color statusColor = Colors.grey;
-              if (item.status == 'sukses') statusColor = Colors.green;
-              if (item.status == 'gagal') statusColor = Colors.red;
-              if (item.status == 'menunggu') statusColor = Colors.orange;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailTransaksiScreen(transaksi: item),
+          return Column(
+            children: [
+              // Filter Chips Section
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: Colors.grey[50],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '${list.length} Transaksi',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty || _filterStatus != 'semua') ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Filtered',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Status Filters
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          const Text("Status: ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('Semua'),
+                            selected: _filterStatus == 'semua',
+                            onSelected: (_) => setState(() => _filterStatus = 'semua'),
+                            selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                            checkmarkColor: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('Menunggu'),
+                            selected: _filterStatus == 'menunggu',
+                            onSelected: (_) => setState(() => _filterStatus = 'menunggu'),
+                            selectedColor: Colors.orange.withValues(alpha: 0.2),
+                            checkmarkColor: Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('Sukses'),
+                            selected: _filterStatus == 'sukses',
+                            onSelected: (_) => setState(() => _filterStatus = 'sukses'),
+                            selectedColor: Colors.green.withValues(alpha: 0.2),
+                            checkmarkColor: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('Gagal'),
+                            selected: _filterStatus == 'gagal',
+                            onSelected: (_) => setState(() => _filterStatus = 'gagal'),
+                            selectedColor: Colors.red.withValues(alpha: 0.2),
+                            checkmarkColor: Colors.red,
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 8),
+                    // Type & Date Filters
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          const Text("Tipe: ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Semua'),
+                            selected: _filterType == 'semua',
+                            onSelected: (_) => setState(() => _filterType = 'semua'),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Masuk'),
+                            selected: _filterType == 'pemasukan',
+                            onSelected: (_) => setState(() => _filterType = 'pemasukan'),
+                            selectedColor: Colors.green.withValues(alpha: 0.2),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Keluar'),
+                            selected: _filterType == 'pengeluaran',
+                            onSelected: (_) => setState(() => _filterType = 'pengeluaran'),
+                            selectedColor: Colors.red.withValues(alpha: 0.2),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(width: 1, height: 24, color: Colors.grey.shade300),
+                          const SizedBox(width: 16),
+                          // Date Picker
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                initialDateRange: _dateRange,
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: ThemeData.light().copyWith(
+                                      primaryColor: AppColors.primary,
+                                      colorScheme: const ColorScheme.light(primary: AppColors.primary),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() => _dateRange = picked);
+                              }
+                            },
+                            child: Chip(
+                              avatar: const Icon(Icons.calendar_today, size: 16),
+                              label: Text(
+                                _dateRange == null 
+                                  ? 'Semua Waktu' 
+                                  : '${DateFormat('dd/MM/yy').format(_dateRange!.start)} - ${DateFormat('dd/MM/yy').format(_dateRange!.end)}',
+                              ),
+                              onDeleted: _dateRange != null 
+                                ? () => setState(() => _dateRange = null) 
+                                : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // List or Empty State
+              if (list.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _searchQuery.isNotEmpty ? Icons.search_off : Icons.inbox_outlined,
+                          size: 80,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty 
+                            ? 'Tidak ada hasil untuk "$_searchQuery"'
+                            : 'Belum ada transaksi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _searchQuery.isNotEmpty
+                            ? 'Coba kata kunci lain'
+                            : 'Transaksi akan muncul di sini',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: SmartRefresher( // Wrap ListView with SmartRefresher
+                    controller: _refreshController,
+                    enablePullDown: true,
+                    header: WaterDropMaterialHeader(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      color: Colors.white,
+                    ),
+                    onRefresh: () async {
+                      // Haptic Feedback for better feel
+                      HapticFeedback.mediumImpact();
+                      // Pura-pura loading biar keren
+                      await Future.delayed(const Duration(milliseconds: 1000));
+                      if (mounted) setState(() {}); // Trigger rebuild
+                      _refreshController.refreshCompleted();
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      itemCount: list.length,
+                      itemBuilder: (context, index) {
+                        final item = list[index];
+                        // ... existing item building logic ...
+                        Color statusColor = Colors.grey;
+                        if (item.status == 'sukses') statusColor = Colors.green;
+                        if (item.status == 'gagal') statusColor = Colors.red;
+                        if (item.status == 'menunggu') statusColor = Colors.orange;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailTransaksiScreen(transaksi: item),
+                        ),
+                      );
+                    },
+                  // ... rest of card content ...
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: statusColor.withOpacity(0.2),
+                          backgroundColor: statusColor.withValues(alpha: 0.2),
                           child: Icon(
                             item.tipe == 'pemasukan'
                                 ? Icons.arrow_downward
@@ -1781,7 +2381,7 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.1),
+                                color: statusColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -1842,11 +2442,17 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                 ),
               );
             },
+          ),
+                  ),
+                ),
+            ],
           );
         },
       ),
     );
   }
+
+
 }
 
 class DetailTransaksiScreen extends StatelessWidget {
@@ -1899,7 +2505,7 @@ class DetailTransaksiScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -2058,6 +2664,58 @@ class DetailTransaksiScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            
+            // Tombol Download Kwitansi (kalo sukses)
+            if (transaksi.status == 'sukses' && transaksi.tipe == 'pemasukan')
+              Container(
+                margin: const EdgeInsets.only(top: 16),
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    try {
+                      // Get iuran name
+                      final iuranName = transaksi.deskripsi;
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📄 Membuat kwitansi...'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                      
+                      await PdfService().generateKwitansiPDF(transaksi, iuranName);
+                      
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('✅ Kwitansi berhasil dibuat!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('❌ Gagal membuat kwitansi: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download),
+                  label: const Text("Download Kwitansi PDF"),
+                ),
+              ),
           ],
         ),
       ),
@@ -2084,10 +2742,44 @@ class DetailTransaksiScreen extends StatelessWidget {
   }
 }
 
-// --- ADMIN IURAN MANAGEMENT (NEW) ---
-class AdminIuranScreen extends StatelessWidget {
+// --- NGATUR DUIT PALAKAN (IURAN) ---
+class AdminIuranScreen extends StatefulWidget {
   const AdminIuranScreen({super.key});
 
+  @override
+  State<AdminIuranScreen> createState() => _AdminIuranScreenState();
+}
+
+class _AdminIuranScreenState extends State<AdminIuranScreen> {
+  
+  Widget _buildStatItem({
+    required String label,
+    required String value,
+    required Color color,
+    bool isAmount = false,
+  }) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isAmount ? 12 : 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     final FirestoreService fs = FirestoreService();
@@ -2100,6 +2792,15 @@ class AdminIuranScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80), // Avoid navbar overlap
+        child: FloatingActionButton.extended(
+          onPressed: () => _showAddIuranDialog(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Tambah Iuran'),
+          backgroundColor: AppColors.primary,
+        ),
       ),
       body: StreamBuilder<List<IuranModel>>(
         stream: fs.getIuranList(),
@@ -2115,22 +2816,46 @@ class AdminIuranScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                  Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[300]),
                   const SizedBox(height: 16),
                   Text(
                     'Belum ada iuran',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap tombol + untuk menambah iuran',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          // StreamBuilder beranak (Nested)
+          return StreamBuilder<List<TransaksiModel>>(
+            stream: fs.getTransaksiList(),
+            builder: (ctx, transSnap) {
+              final transactions = transSnap.hasData ? transSnap.data! : [];
+
+              return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
             itemCount: iurans.length,
             itemBuilder: (c, i) {
               final iuran = iurans[i];
+              
+              // Itung statistik buat iuran ini
+              final iuranTrans = transactions.where((t) => t.iuranId == iuran.id).toList();
+              final paidCount = iuranTrans.where((t) => t.status == 'sukses').length;
+              final pendingCount = iuranTrans.where((t) => t.status == 'menunggu').length;
+              final totalAmount = iuranTrans
+                  .where((t) => t.status == 'sukses')
+                  .fold<int>(0, (sum, t) => (sum + t.uang).toInt());
+              
               return Slidable(
                 key: ValueKey(iuran.id),
                 endActionPane: ActionPane(
@@ -2191,7 +2916,7 @@ class AdminIuranScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.05),
+                      color: Colors.grey.withValues(alpha: 0.05),
                       spreadRadius: 2,
                       blurRadius: 10,
                       offset: const Offset(0, 4),
@@ -2205,7 +2930,7 @@ class AdminIuranScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.payment, color: Color(0xFF6366F1)),
@@ -2238,9 +2963,71 @@ class AdminIuranScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            iuran.deskripsi,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  iuran.deskripsi,
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                ),
+                              ),
+                              // Label Periode
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: iuran.isRecurring ? Colors.blue[50] : Colors.orange[50],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  iuran.periodeDisplay,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: iuran.isRecurring ? Colors.blue[700] : Colors.orange[700],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Stats Section
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem(
+                                  label: 'Terbayar',
+                                  value: '$paidCount',
+                                  color: Colors.green,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 30,
+                                  color: Colors.grey[300],
+                                ),
+                                _buildStatItem(
+                                  label: 'Pending',
+                                  value: '$pendingCount',
+                                  color: Colors.orange,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 30,
+                                  color: Colors.grey[300],
+                                ),
+                                _buildStatItem(
+                                  label: 'Total',
+                                  value: Utils.formatCurrency(totalAmount),
+                                  color: AppColors.primary,
+                                  isAmount: true,
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -2252,7 +3039,7 @@ class AdminIuranScreen extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.1),
+                                    color: Colors.blue.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Row(
@@ -2304,7 +3091,7 @@ class AdminIuranScreen extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.1),
+                                    color: Colors.red.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Row(
@@ -2327,16 +3114,9 @@ class AdminIuranScreen extends StatelessWidget {
                 );
             },
           );
+            },
+          );
         },
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 100), // Angkat FAB agar tidak tertutup navbar
-        child: FloatingActionButton.extended(
-          onPressed: () => _showAddIuranDialog(context),
-          icon: const Icon(Icons.add),
-          label: const Text("Tambah Iuran"),
-          backgroundColor: const Color(0xFF6366F1),
-        ),
       ),
     );
   }
@@ -2346,72 +3126,158 @@ class AdminIuranScreen extends StatelessWidget {
     final priceCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final FirestoreService fs = FirestoreService();
+    String selectedPeriode = 'bulanan'; // Default
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Tambah Jenis Iuran"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Nama Iuran",
-                border: OutlineInputBorder(),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Tambah Jenis Iuran", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: "Nama Iuran",
+                    hintText: "Contoh: Iuran Kebersihan",
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Harga",
+                    hintText: "0",
+                    prefixText: 'Rp ',
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Periode Dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedPeriode,
+                  isExpanded: true, // Fix overflow
+                  decoration: InputDecoration(
+                    labelText: "Periode Iuran",
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                    prefixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'bulanan', child: Text('Bulanan (Rutin)', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'tahunan', child: Text('Tahunan (Rutin)', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'sekali', child: Text('Sekali/Dadakan (17an, dll)', overflow: TextOverflow.ellipsis)),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => selectedPeriode = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descCtrl,
+                  decoration: InputDecoration(
+                    labelText: "Deskripsi",
+                    hintText: "Keterangan tambahan...",
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Harga",
-                border: OutlineInputBorder(),
-                prefixText: 'Rp ',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: "Deskripsi",
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
+                        try {
+                          await fs.tambahIuran(
+                            nameCtrl.text,
+                            int.parse(priceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')), // Safe parse
+                            descCtrl.text,
+                            periode: selectedPeriode,
+                          );
+                          if (!ctx.mounted) return;
+                          
+                          Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    const Text("Iuran berhasil ditambahkan!"),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                margin: const EdgeInsets.all(16),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                          );
+                        }
+                      } else {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Mohon lengkapi data"), backgroundColor: Colors.orange),
+                          );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    child: const Text("Buat Iuran", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
-                await fs.tambahIuran(
-                  nameCtrl.text,
-                  int.parse(priceCtrl.text),
-                  descCtrl.text,
-                );
-                Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("✅ Iuran berhasil ditambahkan!"),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-            ),
-            child: const Text("Buat"),
-          ),
-        ],
       ),
     );
   }
@@ -2421,78 +3287,104 @@ class AdminIuranScreen extends StatelessWidget {
     final priceCtrl = TextEditingController(text: iuran.harga.toString());
     final descCtrl = TextEditingController(text: iuran.deskripsi);
     final FirestoreService fs = FirestoreService();
+    String selectedPeriode = iuran.periode;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Edit Iuran"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: "Nama Iuran",
-                border: OutlineInputBorder(),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text("Edit Iuran"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Nama Iuran",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Harga",
+                    border: OutlineInputBorder(),
+                    prefixText: 'Rp ',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Periode Dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedPeriode,
+                  decoration: const InputDecoration(
+                    labelText: "Periode Iuran",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'bulanan', child: Text('Bulanan (Rutin)')),
+                    DropdownMenuItem(value: 'tahunan', child: Text('Tahunan (Rutin)')),
+                    DropdownMenuItem(value: 'sekali', child: Text('Sekali/Dadakan (17an, dll)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => selectedPeriode = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Deskripsi",
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Harga",
-                border: OutlineInputBorder(),
-                prefixText: 'Rp ',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Batal"),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              decoration: const InputDecoration(
-                labelText: "Deskripsi",
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
+            ElevatedButton(
+              onPressed: () async {
+                if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
+                  await fs.updateIuran(
+                    iuran.id,
+                    nameCtrl.text,
+                    int.parse(priceCtrl.text),
+                    descCtrl.text,
+                    periode: selectedPeriode,
+                  );
+                  Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("✅ Iuran berhasil diupdate!"),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: const Text("Simpan"),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (priceCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
-                await fs.updateIuran(
-                  iuran.id,
-                  nameCtrl.text,
-                  int.parse(priceCtrl.text),
-                  descCtrl.text,
-                );
-                Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("✅ Iuran berhasil diupdate!"),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text("Simpan"),
-          ),
-        ],
       ),
     );
   }
 }
 
-// --- ADMIN USER LIST ---
-// --- ADMIN USER LIST ---
+// --- DAFTAR PENDUDUK BUMI ---
+// --- DAFTAR PENDUDUK BUMI ---
 class AdminUserScreen extends StatefulWidget {
   const AdminUserScreen({super.key});
 
@@ -2559,9 +3451,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
               final trans = snapTrans.data!;
               final paidIds = _getPaidUserIds(trans);
 
-              // Filter users based on selection
+              // Saring user sesuai selera
               final filteredUsers = users.where((u) {
-                if (u.role == 'admin') return false; // Hide admin from list usually? Or keep. Let's hide 'admin' role if filter is specific
+                if (u.role == 'admin') return false; // Umpetin admin dari list (biar misterius)
                 if (_filterStatus == 'Semua') return true;
                 if (_filterStatus == 'Lunas') return paidIds.contains(u.id);
                 if (_filterStatus == 'Belum Lunas') return !paidIds.contains(u.id);
@@ -2594,15 +3486,37 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: isPaid ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                              child: Text(
-                                u.nama.isNotEmpty ? u.nama[0].toUpperCase() : '?',
-                                style: TextStyle(
-                                  color: isPaid ? Colors.green : Colors.orange,
-                                  fontWeight: FontWeight.bold,
+                            leading: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: isPaid ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                                  child: Text(
+                                    u.nama.isNotEmpty ? u.nama[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      color: isPaid ? Colors.green : Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                // Titik Status
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: isPaid ? Colors.green : Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             title: Text(
                               u.nama,
@@ -2622,7 +3536,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isPaid ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                    color: isPaid ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -2638,7 +3552,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.1),
+                                    color: Colors.blue.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -2671,7 +3585,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
   }
 }
 
-// --- ADMIN PROFILE (reuse UserProfile) ---
+// --- PROFIL SANG PENGUASA ---
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
 

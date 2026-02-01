@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Helper untuk show error/success messages dengan style konsisten
+/// Helper biar pesannya ga nyasar dan enak diliat
 class MessageHelper {
-  /// Show error snackbar
+  /// Munculin Pesan Merah (Error)
   static void showError(BuildContext context, String message) {
     if (!context.mounted) return;
     
@@ -28,7 +28,7 @@ class MessageHelper {
     );
   }
 
-  /// Show success snackbar
+  /// Munculin Pesan Hijau (Sukses)
   static void showSuccess(BuildContext context, String message, {VoidCallback? onAction, String? actionLabel}) {
     if (!context.mounted) return;
     
@@ -61,7 +61,7 @@ class MessageHelper {
     );
   }
 
-  /// Show info snackbar
+  /// Munculin Pesan Biru (Info)
   static void showInfo(BuildContext context, String message) {
     if (!context.mounted) return;
     
@@ -87,7 +87,7 @@ class MessageHelper {
     );
   }
 
-  /// Show warning snackbar
+  /// Munculin Pesan Oren (Awas)
   static void showWarning(BuildContext context, String message) {
     if (!context.mounted) return;
     
@@ -113,7 +113,7 @@ class MessageHelper {
     );
   }
 
-  /// Show loading dialog
+  /// Munculin Loading (Sabar ya)
   static void showLoading(BuildContext context, {String message = 'Memproses...'}) {
     showDialog(
       context: context,
@@ -147,14 +147,14 @@ class MessageHelper {
     );
   }
 
-  /// Hide loading dialog
+  /// Ngilangin Loading
   static void hideLoading(BuildContext context) {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
   }
 
-  /// Show confirmation dialog
+  /// Tanya dulu takut salah pencet
   static Future<bool> showConfirmation(
     BuildContext context, {
     required String title,

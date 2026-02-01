@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// 1. Fade In & Slide Animation
 class FadeInSlide extends StatefulWidget {
   final Widget child;
   final Duration duration;
@@ -14,7 +15,6 @@ class FadeInSlide extends StatefulWidget {
     this.offset = 30.0,
   });
 
-  // Correct constructor usage for delay
   const FadeInSlide.delayed({
     super.key,
     required this.child,
@@ -64,6 +64,98 @@ class _FadeInSlideState extends State<FadeInSlide> with SingleTickerProviderStat
         position: _offset,
         child: widget.child,
       ),
+    );
+  }
+}
+
+
+// 2. Scale Button (Micro-interaction)
+class ScaleButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final double scale;
+  final Duration duration;
+
+  const ScaleButton({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.scale = 0.95,
+    this.duration = const Duration(milliseconds: 100),
+  });
+
+  @override
+  State<ScaleButton> createState() => _ScaleButtonState();
+}
+
+class _ScaleButtonState extends State<ScaleButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _scaleAnim = Tween<double>(begin: 1.0, end: widget.scale).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    _controller.forward();
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    _controller.reverse();
+    widget.onTap();
+  }
+
+  void _onTapCancel() {
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// 3. Staggered List Animation Wrapper
+class StaggeredList extends StatelessWidget {
+  final int index;
+  final Widget child;
+  final Duration duration;
+  final double offset;
+
+  const StaggeredList({
+    super.key,
+    required this.index,
+    required this.child,
+    this.duration = const Duration(milliseconds: 375),
+    this.offset = 50.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeInSlide.delayed(
+      duration: duration,
+      delay: Duration(milliseconds: index * 50),
+      offset: offset,
+      child: child,
     );
   }
 }

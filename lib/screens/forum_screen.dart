@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tiara_fin/models.dart';
 import 'package:tiara_fin/services.dart';
-import 'package:tiara_fin/screens/user_screens.dart'; // for AppColors
-import 'package:tiara_fin/screens/feature_screens.dart'; // For ForumChatScreen
+ // for AppColors
+import 'package:tiara_fin/theme.dart';
+import 'package:tiara_fin/screens/feature_screens.dart';
 
 class ForumDiskusiScreen extends StatefulWidget {
   const ForumDiskusiScreen({super.key});
@@ -37,7 +38,9 @@ class _ForumDiskusiScreenState extends State<ForumDiskusiScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    bool isAdmin = _currentUser?.role == 'admin' || _currentUser?.role == 'ketua_rt';
+    // Only Ketua RT can verify/administer forum discussions. 
+    // Bendahara (role 'admin') should currently function as a regular user in this context.
+    bool isAdmin = _currentUser?.role == 'ketua_rt';
 
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
@@ -89,7 +92,7 @@ class _ForumDiskusiScreenState extends State<ForumDiskusiScreen> with SingleTick
     // If we want 'pending' list:
     // - Admin: Fetch ALL (isAdmin=true), filter(status=='pending')
     
-    bool fetchAsAdmin = _currentUser?.role == 'admin' || _currentUser?.role == 'ketua_rt';
+    bool fetchAsAdmin = _currentUser?.role == 'ketua_rt';
 
     return StreamBuilder<List<ForumModel>>(
       stream: _fs.getForumDiskusi(isAdmin: fetchAsAdmin), 
@@ -152,37 +155,38 @@ class _ForumDiskusiScreenState extends State<ForumDiskusiScreen> with SingleTick
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isMe ? Border.all(color: AppColors.primary.withOpacity(0.3)) : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(20),
+          border: isMe ? Border.all(color: AppTheme.primary.withValues(alpha: 0.3)) : null,
+          boxShadow: AppTheme.softShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isMe ? AppColors.primary : Colors.grey.shade300,
-                  child: Text(
-                    post.authorName.isNotEmpty ? post.authorName[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      color: isMe ? Colors.white : AppColors.dark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: isMe ? AppTheme.primary : Colors.grey.shade200, width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: isMe ? AppTheme.primary : Colors.grey.shade100,
+                    child: Text(
+                      post.authorName.isNotEmpty ? post.authorName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: isMe ? Colors.white : AppTheme.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,56 +198,61 @@ class _ForumDiskusiScreenState extends State<ForumDiskusiScreen> with SingleTick
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: AppColors.dark,
+                          color: AppTheme.textMain,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         "Oleh ${post.authorName} • ${Utils.formatDateTime(post.createdAt)}",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                       ),
                     ],
                   ),
                 ),
                 if (post.status == 'pending')
                    Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                     decoration: BoxDecoration(color: Colors.orange[100], borderRadius: BorderRadius.circular(8)),
-                     child: const Text("Pending", style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold)),
+                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                     decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                     child: const Text("Pending", style: TextStyle(color: AppTheme.warning, fontSize: 10, fontWeight: FontWeight.bold)),
                    )
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
               post.description,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+              style: const TextStyle(fontSize: 14, color: AppTheme.textMain, height: 1.5),
             ),
+            const SizedBox(height: 16),
             
-            // Action Buttons for Admin in Pending View
-            if (isPendingView) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+            // Like/Comment Count Indicator (Visual Only for now)
+            Row(
+              children: [
+                const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                const Text("Diskusi", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Spacer(),
+                if (isPendingView) ...[
                   TextButton(
                     onPressed: () => _updateStatus(post, 'rejected'),
-                    child: const Text("Tolak", style: TextStyle(color: Colors.red)),
+                    child: const Text("Tolak", style: TextStyle(color: AppTheme.danger)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => _updateStatus(post, 'approved'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      backgroundColor: AppTheme.success,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                     ),
                     child: const Text("Setujui", style: TextStyle(color: Colors.white)),
                   ),
-                ],
-              )
-            ]
+                ] else 
+                   const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey)
+              ],
+            )
           ],
         ),
       ),
@@ -305,14 +314,14 @@ class _ForumDiskusiScreenState extends State<ForumDiskusiScreen> with SingleTick
                   ),
                 ),
                 const SizedBox(height: 12),
-                 Container(
+                  Container(
                    padding: const EdgeInsets.all(8),
                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
                    child: const Row(
                      children: [
                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
                        SizedBox(width: 8),
-                       Expanded(child: Text("Diskusi perlu disetujui Admin sebelum tampil ke publik.", style: TextStyle(fontSize: 11, color: Colors.blueGrey))),
+                       Expanded(child: Text("Diskusi perlu disetujui Ketua RT sebelum tampil ke publik.", style: TextStyle(fontSize: 11, color: Colors.blueGrey))),
                      ],
                    ),
                  )

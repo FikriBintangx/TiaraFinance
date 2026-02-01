@@ -1,206 +1,185 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// Service untuk handle Firebase Cloud Messaging (Push Notifications)
-class NotificationService {
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Initialize FCM dan request permission
-  Future<void> initialize(String userId) async {
-    try {
-      // Request permission (iOS)
-      NotificationSettings settings = await _fcm.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        debugPrint('✅ User granted notification permission');
-      } else {
-        debugPrint('⚠️ User declined notification permission');
-        return;
-      }
-
-      // Get FCM token
-      String? token = await _fcm.getToken();
-      if (token != null) {
-        debugPrint('📱 FCM Token: $token');
-        // Save token to Firestore
-        await _saveTokenToDatabase(userId, token);
-      }
-
-      // Listen for token refresh
-      _fcm.onTokenRefresh.listen((newToken) {
-        debugPrint('🔄 FCM Token refreshed: $newToken');
-        _saveTokenToDatabase(userId, newToken);
-      });
-
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-      // Handle background messages (when app is in background but not terminated)
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
-
-      // Handle notification when app is opened from terminated state
-      RemoteMessage? initialMessage = await _fcm.getInitialMessage();
-      if (initialMessage != null) {
-        _handleMessageOpenedApp(initialMessage);
-      }
-
-    } catch (e) {
-      debugPrint('❌ Error initializing FCM: $e');
-    }
-  }
-
-  /// Save FCM token to Firestore
-  Future<void> _saveTokenToDatabase(String userId, String token) async {
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'fcmToken': token,
-        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      });
-      debugPrint('✅ FCM token saved to Firestore');
-    } catch (e) {
-      debugPrint('❌ Error saving FCM token: $e');
-    }
-  }
-
-  /// Handle foreground message (when app is open)
-  void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('📬 Foreground message received:');
-    debugPrint('Title: ${message.notification?.title}');
-    debugPrint('Body: ${message.notification?.body}');
-    debugPrint('Data: ${message.data}');
-
-    // You can show in-app notification here
-    // Or update UI directly
-  }
-
-  /// Handle message when app is opened from notification
-  void _handleMessageOpenedApp(RemoteMessage message) {
-    debugPrint('🔔 Notification tapped:');
-    debugPrint('Title: ${message.notification?.title}');
-    debugPrint('Body: ${message.notification?.body}');
-    debugPrint('Data: ${message.data}');
-
-    // Navigate to specific screen based on notification data
-    // Example: if (message.data['type'] == 'payment') { navigate to payment screen }
-  }
-
-  /// Send notification to specific user
-  Future<void> sendNotificationToUser({
-    required String userId,
-    required String title,
-    required String body,
-    Map<String, dynamic>? data,
-  }) async {
-    try {
-      // Get user's FCM token
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
-      String? fcmToken = userDoc.get('fcmToken');
-
-      if (fcmToken == null) {
-        debugPrint('⚠️ User $userId does not have FCM token');
-        return;
-      }
-
-      // Save notification to Firestore (for notification history)
-      await _firestore.collection('notifications').add({
-        'userId': userId,
-        'title': title,
-        'body': body,
-        'data': data ?? {},
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('✅ Notification saved to Firestore');
-      
-      // Note: Actual push notification sending requires Cloud Functions
-      // This is just saving to database for now
-      
-    } catch (e) {
-      debugPrint('❌ Error sending notification: $e');
-    }
-  }
-
-  /// Send notification to all users with specific role
-  Future<void> sendNotificationToRole({
-    required String role,
-    required String title,
-    required String body,
-    Map<String, dynamic>? data,
-  }) async {
-    try {
-      // Get all users with specific role
-      QuerySnapshot usersSnapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: role)
-          .get();
-
-      // Send notification to each user
-      for (var doc in usersSnapshot.docs) {
-        await sendNotificationToUser(
-          userId: doc.id,
-          title: title,
-          body: body,
-          data: data,
-        );
-      }
-
-      debugPrint('✅ Notifications sent to all $role users');
-    } catch (e) {
-      debugPrint('❌ Error sending notifications to role: $e');
-    }
-  }
-
-  /// Get unread notifications count
-  Stream<int> getUnreadNotificationsCount(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('read', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length);
-  }
-
-  /// Mark notification as read
-  Future<void> markAsRead(String notificationId) async {
-    try {
-      await _firestore.collection('notifications').doc(notificationId).update({
-        'read': true,
-        'readAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('❌ Error marking notification as read: $e');
-    }
-  }
-
-  /// Delete FCM token (on logout)
-  Future<void> deleteToken(String userId) async {
-    try {
-      await _fcm.deleteToken();
-      await _firestore.collection('users').doc(userId).update({
-        'fcmToken': FieldValue.delete(),
-      });
-      debugPrint('✅ FCM token deleted');
-    } catch (e) {
-      debugPrint('❌ Error deleting FCM token: $e');
-    }
-  }
+/// Urusin pesan pas aplikasi bobok
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("📱 Background Message: ${message.notification?.title}");
 }
 
-/// Background message handler (must be top-level function)
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('🔔 Background message received:');
-  debugPrint('Title: ${message.notification?.title}');
-  debugPrint('Body: ${message.notification?.body}');
+class NotificationService {
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  
+  int _notificationCount = 0;
+  
+  /// Siapin tentara notifikasi (FCM & Lokal)
+  Future<void> initialize() async {
+    // Minta izin dulu sama Apple user
+    NotificationSettings settings = await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('✅ User granted notification permission');
+    } else {
+      print('⚠️ User declined notification permission');
+    }
+
+    // Siapin notifikasi lokal
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+
+    // Bikin jalur khusus notif Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'tiara_finance_channel',
+      'Tiara Finance Notifications',
+      description: 'Notifikasi untuk pembayaran dan transaksi',
+      importance: Importance.high,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // Set background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Urusin pesan pas lagi buka aplikasi
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // Kalo notif dipencet pas app di background
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+    // Get FCM token
+    String? token = await _fcm.getToken();
+    print('📱 FCM Token: $token');
+  }
+
+  /// Urusin pesan pas lagi buka aplikasi
+  void _handleForegroundMessage(RemoteMessage message) {
+    print('📩 Foreground Message: ${message.notification?.title}');
+    
+    _notificationCount++;
+    
+    // Show local notification with badge
+    _showLocalNotification(
+      title: message.notification?.title ?? 'Notifikasi Baru',
+      body: message.notification?.body ?? '',
+      payload: message.data.toString(),
+    );
+  }
+
+  /// Kalo notif dipencet
+  void _handleNotificationTap(RemoteMessage message) {
+    print('👆 Notification tapped: ${message.notification?.title}');
+    // PR: Arahin ke layar yang bener (nanti ya)
+  }
+
+  /// Pas notifikasi lokal disentuh
+  void _onNotificationTapped(NotificationResponse response) {
+    print('👆 Local notification tapped: ${response.payload}');
+    // PR: Arahin ke layar yang bener (nanti ya)
+  }
+
+  /// Show local notification
+  Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'tiara_finance_channel',
+      'Tiara Finance Notifications',
+      channelDescription: 'Notifikasi untuk pembayaran dan transaksi',
+      importance: Importance.high,
+      priority: Priority.high,
+      enableVibration: true,
+      playSound: true,
+      icon: '@mipmap/ic_launcher',
+      styleInformation: BigTextStyleInformation(''),
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      details,
+      payload: payload,
+    );
+  }
+
+  /// Munculin notif manual (buat tes doang)
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    _notificationCount++;
+    await _showLocalNotification(
+      title: title,
+      body: body,
+      payload: data?.toString(),
+    );
+  }
+
+  /// Get notification count
+  int get notificationCount => _notificationCount;
+
+  /// Reset notification count
+  void resetNotificationCount() {
+    _notificationCount = 0;
+  }
+
+  /// Langganan topik buat notif massal
+  Future<void> subscribeToTopic(String topic) async {
+    await _fcm.subscribeToTopic(topic);
+    print('✅ Subscribed to topic: $topic');
+  }
+
+  /// Berhenti langganan dari topik
+  Future<void> unsubscribeFromTopic(String topic) async {
+    await _fcm.unsubscribeFromTopic(topic);
+    print('❌ Unsubscribed from topic: $topic');
+  }
+
+  /// Get FCM token
+  Future<String?> getToken() async {
+    return await _fcm.getToken();
+  }
 }

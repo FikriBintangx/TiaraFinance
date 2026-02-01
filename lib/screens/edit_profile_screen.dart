@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tiara_fin/models.dart';
 import 'package:tiara_fin/services.dart';
-import 'package:tiara_fin/screens/user_screens.dart'; // For AppColors
+
 
 class EditProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -112,129 +112,131 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Avatar Section
-              Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade200, width: 4),
-                        boxShadow: [
-                           BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5)),
-                        ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Avatar Section
+                Center(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey.shade200, width: 4),
+                          boxShadow: [
+                             BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5)),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: Colors.grey.shade100,
+                          backgroundImage: _imageFile != null
+                              ? FileImage(_imageFile!)
+                              : (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty
+                                  ? NetworkImage(widget.user.photoUrl!) as ImageProvider
+                                  : null),
+                          child: (_imageFile == null && (widget.user.photoUrl == null || widget.user.photoUrl!.isEmpty))
+                              ? Text(
+                                  widget.user.nama.isNotEmpty ? widget.user.nama[0].toUpperCase() : 'U',
+                                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.grey),
+                                )
+                              : null,
+                        ),
                       ),
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.grey.shade100,
-                        backgroundImage: _imageFile != null
-                            ? FileImage(_imageFile!)
-                            : (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty
-                                ? NetworkImage(widget.user.photoUrl!) as ImageProvider
-                                : null),
-                        child: (_imageFile == null && (widget.user.photoUrl == null || widget.user.photoUrl!.isEmpty))
-                            ? Text(
-                                widget.user.nama.isNotEmpty ? widget.user.nama[0].toUpperCase() : 'U',
-                                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.grey),
-                              )
-                            : null,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                _buildTextField(
+                  controller: _nameController,
+                  label: 'Nama Lengkap',
+                  icon: Icons.person_outline,
+                  validator: (v) => v!.isEmpty ? 'Nama tidak boleh kosong' : null,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _hpController,
+                  label: 'No. Handphone',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _blokController,
+                        label: 'Blok',
+                        icon: Icons.location_on_outlined,
                       ),
                     ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                        ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _houseNoController,
+                        label: 'No. Rumah',
+                        icon: Icons.home_outlined,
                       ),
                     ),
                   ],
                 ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              _buildTextField(
-                controller: _nameController,
-                label: 'Nama Lengkap',
-                icon: Icons.person_outline,
-                validator: (v) => v!.isEmpty ? 'Nama tidak boleh kosong' : null,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _hpController,
-                label: 'No. Handphone',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _blokController,
-                      label: 'Blok',
-                      icon: Icons.location_on_outlined,
+                const SizedBox(height: 16),
+                 // Email (Read Only)
+                TextFormField(
+                  initialValue: widget.user.email,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _houseNoController,
-                      label: 'No. Rumah',
-                      icon: Icons.home_outlined,
+                ),
+                
+                const SizedBox(height: 40),
+                
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-               // Email (Read Only)
-              TextFormField(
-                initialValue: widget.user.email,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                    child: _isLoading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Simpan Perubahan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Simpan Perubahan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
