@@ -28,7 +28,7 @@ class AppColors {
   static const purple = Color(0xFFAF52DE);
 }
 
-// --- MODEL TAMBAHAN BIAR GANTENG ---
+// --- ADDITIONAL MODELS ---
 
 class NotificationModel {
   final String id;
@@ -88,7 +88,7 @@ class Utils {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  /// Tanggal plus jam, biar gak telat
+  /// Date and Time
   static String formatDateTime(DateTime date) {
     return '${formatDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
@@ -853,7 +853,7 @@ class FirestoreService {
           .map((doc) => ForumModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
       
-      // Urutin di HP aja biar server ga ngos-ngosan
+      // Client-side sorting
       docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return docs;
     });
@@ -925,7 +925,7 @@ class FirestoreService {
     required String type,
     required String targetRole,
   }) async {
-    // 1. Simpen di Firestore biar muncul di list
+    // 1. Save to Firestore
     await _db.collection('notifications').add({
       'title': title,
       'body': body,
@@ -1104,7 +1104,7 @@ class PdfService {
     );
   }
 
-  /// Bikin kwitansi PDF biar sah
+  /// Generate PDF Receipt
   Future<void> generateKwitansiPDF(TransaksiModel transaksi, String iuranName) async {
     final pdf = pw.Document();
 
@@ -1307,7 +1307,7 @@ class AuthService {
           .get();
       if (query.docs.isNotEmpty) return "Email sudah terdaftar";
 
-      // Acak-acak password biar aman
+      // Hash password
       final hashedPassword = SecurityUtils.hashPassword(password);
 
       await _db.collection('users').add({

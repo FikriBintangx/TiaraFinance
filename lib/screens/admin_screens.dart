@@ -33,14 +33,14 @@ class AdminMainScreen extends StatefulWidget {
 
 class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProviderStateMixin {
   int _idx = 0;
-  String? _role;
+  UserModel? _currentUser;
   final AuthService _auth = AuthService();
 
 
   @override
   void initState() {
     super.initState();
-    _loadRole();
+    _loadUser();
     
 
   }
@@ -50,11 +50,11 @@ class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProv
     super.dispose();
   }
 
-  void _loadRole() async {
+  void _loadUser() async {
     final user = await _auth.getCurrentUser();
     if (mounted) {
       setState(() {
-        _role = user?.role;
+        _currentUser = user;
       });
     }
   }
@@ -70,11 +70,11 @@ class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProv
   }
 
   List<Widget> get _screens {
-    if (_role == 'ketua_rt') {
+    if (_currentUser?.role == 'ketua_rt') {
        // Ketua RT: Dashboard, Laporan Transaksi (ReadOnly), User List, Profile
        // Hide "Kelola Iuran"
        return [
-         const AdminDashboardScreen(),
+         AdminDashboardScreen(currentUser: _currentUser!),
          const AdminTransaksiScreen(), // Ensure this screen handles readonly/actions inside if needed, or create separate if strict
          const AdminUserScreen(), // Laporan Warga
          const AdminProfileScreen(),
@@ -82,7 +82,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProv
     }
     // Default Admin
     return [
-      const AdminDashboardScreen(),
+      AdminDashboardScreen(currentUser: _currentUser!),
       const AdminTransaksiScreen(),
       const AdminIuranScreen(),
       const AdminUserScreen(),
@@ -94,7 +94,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    if (_role == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_currentUser == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     
     // Safety check idx if role changes/hot reload
     if (_idx >= _screens.length) _idx = 0;
@@ -122,7 +122,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> with SingleTickerProv
   }
 
   List<IconData> _getNavIcons() {
-    if (_role == 'ketua_rt') {
+    if (_currentUser?.role == 'ketua_rt') {
       return [
         Icons.dashboard_rounded,
         Icons.list_alt_rounded,
@@ -197,7 +197,8 @@ class AdminWavyClipper extends CustomClipper<Path> {
 
 // --- DASHBOARD ADMIN GANTENG ---
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  final UserModel currentUser;
+  const AdminDashboardScreen({super.key, required this.currentUser});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -207,17 +208,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final FirestoreService _fs = FirestoreService();
   final AuthService _auth = AuthService();
   final SupabaseService _supabase = SupabaseService();
-  UserModel? _currentAdmin;
+  
+  // Local state removed, use widget.currentUser
 
   @override
   void initState() {
     super.initState();
-    _loadAdmin();
-  }
-
-  void _loadAdmin() async {
-    _currentAdmin = await _auth.getCurrentUser();
-    setState(() {});
   }
 
 
@@ -225,7 +221,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     // Sesuain menu sama jabatan
-    final bool isKetuaRT = _currentAdmin?.role == 'ketua_rt';
+    final bool isKetuaRT = widget.currentUser.role == 'ketua_rt';
 
     return Scaffold(
       backgroundColor: isKetuaRT ? RoleTheme.rtBackground : RoleTheme.adminBackground,
@@ -272,12 +268,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                    child: _currentAdmin == null 
-                      ? const SizedBox() 
-                      : StreamBuilder<UserModel>(
-                        stream: _fs.streamUser(_currentAdmin!.id),
+                    child: StreamBuilder<UserModel>(
+                        stream: _fs.streamUser(widget.currentUser.id),
                         builder: (context, snapshot) {
-                          final user = snapshot.data ?? _currentAdmin!;
+                          final user = snapshot.data ?? widget.currentUser;
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -605,7 +599,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                      children: [
                        if (isKetuaRT) ...[
                           Expanded(child: _buildMenuIcon(Icons.campaign_outlined, 'Info', AppTheme.warning, () {
-                            if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: _currentAdmin!)));
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: widget.currentUser)));
                           })),
                           const SizedBox(width: 10),
                           Expanded(child: _buildMenuIcon(Icons.forum_outlined, 'Forum', AppTheme.secondary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
@@ -615,7 +609,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Expanded(child: _buildMenuIcon(Icons.note_add_outlined, 'Iuran', AppTheme.primary, () => _showAddIuranDialog(context))),
                           const SizedBox(width: 10),
                           Expanded(child: _buildMenuIcon(Icons.campaign_outlined, 'Info', AppTheme.warning, () {
-                            if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: _currentAdmin!)));
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => PengumumanListScreen(currentUser: widget.currentUser)));
                           })),
                           const SizedBox(width: 10),
                           Expanded(child: _buildMenuIcon(Icons.forum_outlined, 'Forum', AppTheme.secondary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForumDiskusiScreen())))),
@@ -633,7 +627,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                        ],
                        
                        Expanded(child: _buildMenuIcon(Icons.report_problem_outlined, 'Aduan', AppTheme.danger, () {
-                         if (_currentAdmin != null) Navigator.push(context, MaterialPageRoute(builder: (_) => PengaduanScreen(currentUser: _currentAdmin!)));
+                         Navigator.push(context, MaterialPageRoute(builder: (_) => PengaduanScreen(currentUser: widget.currentUser)));
                        })),
 
                        if (isKetuaRT) ...[
@@ -1403,14 +1397,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             );
                           }
 
-                          if (_currentAdmin != null) {
-                            await _fs.tambahPengeluaranAdmin(
-                              _currentAdmin!.id,
-                              _currentAdmin!.nama,
-                              int.parse(jumlahCtrl.text),
-                              descCtrl.text,
-                              buktiUrl: uploadedUrl,
-                            );
+                          // Removed null check since widget.currentUser is required
+                          await _fs.tambahPengeluaranAdmin(
+                            widget.currentUser.id,
+                            widget.currentUser.nama,
+                            int.parse(jumlahCtrl.text),
+                            descCtrl.text,
+                            buktiUrl: uploadedUrl,
+                          );
 
                             Navigator.pop(ctx);
                             if (context.mounted) {
@@ -1423,7 +1417,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 ),
                               );
                             }
-                          }
                         } catch (e) {
                           setState(() => isUploading = false);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1867,7 +1860,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           await _fs.addPengumuman(
                             titleCtrl.text,
                             descCtrl.text,
-                            _currentAdmin?.role == 'ketua_rt' ? "Ketua RT" : (_currentAdmin?.nama ?? "Admin"),
+                            widget.currentUser.role == 'ketua_rt' ? "Ketua RT" : widget.currentUser.nama,
                             urls,
                           );
 
@@ -2298,7 +2291,7 @@ class _AdminTransaksiScreenState extends State<AdminTransaksiScreen> {
                     onRefresh: () async {
                       // Haptic Feedback for better feel
                       HapticFeedback.mediumImpact();
-                      // Pura-pura loading biar keren
+                      // Simulate loading delay
                       await Future.delayed(const Duration(milliseconds: 1000));
                       if (mounted) setState(() {}); // Trigger rebuild
                       _refreshController.refreshCompleted();
